@@ -11,9 +11,11 @@
   --text-primary:     #F0EDE8;
   --text-secondary:   #A8A29B;
   --text-tertiary:    #8A8480;
-  --border:           #2C2820;
+  --border:           #332E28;
   --live:             #4ade80;
   --error:            #ef4444;
+  --radius-card:      10px;
+  --radius-btn:       6px;
 
   /* Knowledge layer colors */
   --layer-core:       #B8956A;

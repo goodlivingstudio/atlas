@@ -41,16 +41,16 @@ export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
             aria-checked={active}
             onClick={() => onChange(key)}
             style={{
-              padding: "18px 20px", minHeight: 80, textAlign: "left", cursor: "pointer",
+              padding: "22px 22px", minHeight: 108, textAlign: "left", cursor: "pointer",
               background: active ? "var(--accent-primary)" : "var(--bg-surface)",
               border: `1px solid ${active ? "var(--accent-secondary)" : "var(--border)"}`,
-              borderRadius: 4,
+              borderRadius: "var(--radius-card)",
               transition: "border-color 0.15s, background 0.15s",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <Icon
-                size={11}
+                size={14}
                 aria-hidden="true"
                 style={{
                   color: active ? "var(--accent-secondary)" : "var(--text-tertiary)",

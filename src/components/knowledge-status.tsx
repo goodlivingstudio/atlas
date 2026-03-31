@@ -61,7 +61,7 @@ export function KnowledgeStatus() {
 
       <div style={{
         border: "1px solid var(--border)",
-        borderRadius: 4,
+        borderRadius: "var(--radius-card)",
         overflow: "hidden",
       }}>
         {(Object.entries(LAYER_META) as [KnowledgeLayer, typeof LAYER_META.core][]).map(([key, meta], i) => {

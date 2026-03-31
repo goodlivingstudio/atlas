@@ -18,7 +18,7 @@ export function Nav() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px", height: 44,
+        padding: "0 24px", height: 52,
         background: "var(--bg-primary)", borderBottom: "1px solid var(--border)",
       }}
     >
@@ -48,11 +48,11 @@ export function Nav() {
               aria-current={active ? "page" : undefined}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "5px 12px", height: 32,
+                padding: "6px 14px", height: 36,
                 fontSize: 11, fontWeight: active ? 600 : 400,
                 letterSpacing: "0.04em",
                 color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-                textDecoration: "none", borderRadius: 3,
+                textDecoration: "none", borderRadius: 6,
                 background: active ? "var(--bg-elevated)" : "transparent",
                 transition: "color 0.15s, background 0.15s",
               }}

@@ -48,7 +48,7 @@ export default function Home() {
   }
 
   return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px 48px" }}>
+    <main style={{ maxWidth: 760, margin: "0 auto", padding: "88px 24px 64px" }}>
 
       {/* Page header */}
       <div style={{ marginBottom: 40 }}>
@@ -97,9 +97,9 @@ export default function Home() {
             value={filterLayer}
             onChange={(e) => setFilterLayer(e.target.value as KnowledgeLayer | "")}
             style={{
-              width: "100%", height: 44, padding: "0 12px",
+              width: "100%", height: 52, padding: "0 14px",
               background: "var(--bg-surface)", border: "1px solid var(--border)",
-              borderRadius: 4, color: filterLayer ? "var(--text-primary)" : "var(--text-tertiary)",
+              borderRadius: "var(--radius-btn)", color: filterLayer ? "var(--text-primary)" : "var(--text-tertiary)",
               fontSize: 13, cursor: "pointer",
             }}
           >
@@ -117,8 +117,8 @@ export default function Home() {
           </label>
           <div style={{
             flex: 1, display: "flex", alignItems: "center", gap: 10,
-            padding: "0 14px", height: 44,
-            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 4,
+            padding: "0 16px", height: 52,
+            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-btn)",
           }}>
             <Search size={13} aria-hidden="true" style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
             <input
@@ -142,10 +142,10 @@ export default function Home() {
             disabled={loading || !query.trim()}
             aria-label={loading ? "Running query" : "Run query"}
             style={{
-              height: 44, padding: "0 20px",
+              height: 52, padding: "0 24px",
               background: loading ? "var(--bg-elevated)" : "var(--accent-primary)",
               border: `1px solid ${loading ? "var(--border)" : "var(--accent-secondary)"}`,
-              borderRadius: 4, color: "var(--accent-secondary)",
+              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
               fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
               cursor: loading || !query.trim() ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", gap: 6,
@@ -195,8 +195,8 @@ export default function Home() {
 
           {/* Answer */}
           <div style={{
-            padding: "20px 24px", marginBottom: 24,
-            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 4,
+            padding: "24px 28px", marginBottom: 24,
+            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-card)",
           }}>
             <div style={{
               fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
