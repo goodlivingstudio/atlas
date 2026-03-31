@@ -152,10 +152,10 @@ export async function POST(request: NextRequest) {
 
     // ── PDF ───────────────────────────────────────────────────────────────────
     if (ext === "pdf" || mimeType === "application/pdf") {
-      // Dynamic import avoids pdf-parse's test-file require() side effect
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfModule = await import("pdf-parse") as any;
-      const pdfParse = pdfModule.default ?? pdfModule;
+      // pdf-parse is a CommonJS module — require() is the only reliable import
+      // in Next.js App Router (dynamic import returns a namespace object, not a fn)
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
       const data = await pdfParse(buffer);
       text = data.text.trim();
     }
