@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, X, Archive, ArrowRight, FileText, UploadCloud } from "lucide-react";
+import { Plus, X, Archive, ArrowRight, FileText, UploadCloud, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 interface Engagement {
@@ -39,7 +39,25 @@ export default function LoadingDock() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Accepted file types
+  const ACCEPTED = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.markdown";
+  const ACCEPTED_MIME = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/csv",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "text/markdown",
+  ];
 
   useEffect(() => {
     fetch("/api/engagements")
@@ -64,6 +82,68 @@ export default function LoadingDock() {
     e.preventDefault();
   }
 
+  async function extractFile(file: File) {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/extract-file", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setExtractError(data.error || "Extraction failed");
+        setShowForm(true);
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        name: f.name || data.title || "",
+        brief: f.brief || data.text?.slice(0, 1200) || "",
+        notes: data.text && data.text.length > 1200
+          ? data.text.slice(1200, 3000)
+          : f.notes,
+      }));
+      setShowForm(true);
+    } catch {
+      setExtractError("Could not read that file. Try again or fill in manually.");
+      setShowForm(true);
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function extractUrl(url: string) {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const res = await fetch("/api/extract-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setExtractError(data.error || "Could not fetch that URL");
+        setForm((f) => ({ ...f, url }));
+        setShowForm(true);
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        url: f.url || url,
+        name: f.name || data.title || "",
+        brief: f.brief || data.text?.slice(0, 1200) || "",
+      }));
+      setShowForm(true);
+    } catch {
+      setExtractError("Could not reach that URL.");
+      setForm((f) => ({ ...f, url }));
+      setShowForm(true);
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     dragCounterRef.current = 0;
@@ -71,37 +151,26 @@ export default function LoadingDock() {
 
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      const isText = file.type.startsWith("text/") || /\.(md|txt|markdown)$/i.test(file.name);
-      const nameBase = file.name.replace(/\.(md|txt|markdown)$/i, "").replace(/[-_]/g, " ");
-      if (isText) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const content = ev.target?.result as string;
-          setForm((f) => ({
-            ...f,
-            name: f.name || nameBase,
-            brief: f.brief || content.slice(0, 600),
-          }));
-          setShowForm(true);
-        };
-        reader.readAsText(file);
-      } else {
-        setForm((f) => ({ ...f, name: f.name || nameBase }));
-        setShowForm(true);
-      }
+      extractFile(file);
       return;
     }
 
-    // Handle URL or text drops
+    // URL or text drop
     const text = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text/uri-list");
-    if (text) {
+    if (text?.trim()) {
       try {
-        new URL(text);
-        setForm((f) => ({ ...f, url: text }));
+        const u = new URL(text.trim());
+        // Google Drive URLs → extract
+        if (u.hostname.includes("docs.google.com") || u.hostname.includes("drive.google.com")) {
+          extractUrl(text.trim());
+        } else {
+          setForm((f) => ({ ...f, url: text.trim() }));
+          setShowForm(true);
+        }
       } catch {
         setForm((f) => ({ ...f, brief: f.brief ? `${f.brief}\n\n${text}` : text }));
+        setShowForm(true);
       }
-      setShowForm(true);
     }
   }
 
@@ -194,63 +263,111 @@ export default function LoadingDock() {
         </p>
       </div>
 
+      {/* Hidden file input for click-to-upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED}
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) extractFile(file);
+          e.target.value = "";
+        }}
+      />
+
       {/* Intake zone — visible when form is not showing */}
       {!showForm && (
         <div
-          role="button"
-          tabIndex={0}
-          aria-label="Drop a file or click to start a new engagement"
-          onClick={() => setShowForm(true)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowForm(true); }}
           style={{
-            padding: "36px 32px",
+            padding: "40px 32px",
             border: `2px dashed ${dragOver ? "var(--accent-secondary)" : "var(--border)"}`,
             borderRadius: "var(--radius-card)",
             background: dragOver ? "var(--accent-primary)" : "transparent",
             marginBottom: 40,
-            cursor: "pointer",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 12,
+            gap: 14,
             transition: "border-color 0.15s, background 0.15s",
             textAlign: "center",
           }}
         >
           <div style={{
-            width: 48, height: 48,
+            width: 52, height: 52,
             background: "var(--bg-surface)",
             border: "1px solid var(--border)",
-            borderRadius: 10,
+            borderRadius: 12,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            {dragOver
-              ? <UploadCloud size={20} style={{ color: "var(--accent-secondary)" }} aria-hidden="true" />
-              : <FileText size={20} style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+            {extracting
+              ? <Loader2 size={22} style={{ color: "var(--accent-secondary)", animation: "pulse-text 1.8s ease-in-out infinite" }} aria-hidden="true" />
+              : dragOver
+              ? <UploadCloud size={22} style={{ color: "var(--accent-secondary)" }} aria-hidden="true" />
+              : <FileText size={22} style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
             }
           </div>
+
           <div>
             <div style={{
-              fontSize: 15, fontWeight: 500, color: dragOver ? "var(--accent-secondary)" : "var(--text-primary)",
-              letterSpacing: "-0.02em", marginBottom: 4, transition: "color 0.15s",
+              fontSize: 16, fontWeight: 500,
+              color: dragOver ? "var(--accent-secondary)" : "var(--text-primary)",
+              letterSpacing: "-0.02em", marginBottom: 6, transition: "color 0.15s",
             }}>
-              {dragOver ? "Drop to start" : "Drop a file or URL to begin"}
+              {extracting ? "Extracting text…" : dragOver ? "Drop to start" : "Drop a file to begin"}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              .md, .txt, or any text file · or click to fill out manually
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+              PDF · Word (.docx) · Excel · PowerPoint · Markdown · CSV
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2, opacity: 0.7 }}>
+              Google Docs / Sheets / Slides (public links supported)
             </div>
           </div>
-          {!dragOver && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "10px 18px", marginTop: 4,
-              background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
-              fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
-              transition: "background 0.15s",
+
+          {extractError && (
+            <div role="alert" style={{
+              padding: "10px 14px", maxWidth: 420,
+              background: "var(--bg-primary)", border: "1px solid var(--error)",
+              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
             }}>
-              <Plus size={12} aria-hidden="true" />
-              New Engagement
+              {extractError}
+            </div>
+          )}
+
+          {!dragOver && !extracting && (
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  height: 40, padding: "0 18px",
+                  background: "var(--bg-surface)", border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
+                  fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                  textTransform: "uppercase", cursor: "pointer",
+                }}
+              >
+                <UploadCloud size={12} aria-hidden="true" />
+                Upload File
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  height: 40, padding: "0 18px",
+                  background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
+                  borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                  fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                  textTransform: "uppercase", cursor: "pointer",
+                }}
+              >
+                <Plus size={12} aria-hidden="true" />
+                Fill Manually
+              </button>
             </div>
           )}
         </div>
@@ -263,6 +380,16 @@ export default function LoadingDock() {
           background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
           borderRadius: "var(--radius-card)", marginBottom: 40,
         }}>
+          {extractError && (
+            <div role="alert" style={{
+              padding: "10px 14px", marginBottom: 20,
+              background: "var(--bg-primary)", border: "1px solid var(--error)",
+              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+            }}>
+              {extractError} — fill in the details below manually.
+            </div>
+          )}
+
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24,
           }}>
