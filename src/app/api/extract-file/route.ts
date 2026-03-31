@@ -151,12 +151,12 @@ export async function POST(request: NextRequest) {
     let text = "";
 
     // ── PDF ───────────────────────────────────────────────────────────────────
-    // pdf-parse v2 uses a class-based API: new PDFParse({ data }) → .getText()
+    // unpdf is built for Node.js/Next.js — no web worker, no bundler issues
     if (ext === "pdf" || mimeType === "application/pdf") {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      const result = await parser.getText();
-      text = result.text.trim();
+      const { getDocumentProxy, extractText } = await import("unpdf");
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      const { text: extracted } = await extractText(pdf, { mergePages: true });
+      text = extracted.trim();
     }
 
     // ── Word (modern) ─────────────────────────────────────────────────────────
