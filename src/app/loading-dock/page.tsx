@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, X, Archive, ArrowRight, FileText, UploadCloud, Loader2 } from "lucide-react";
+import {
+  Plus, X, Archive, ArrowRight, FileText, UploadCloud,
+  Loader2, ChevronRight, CheckCheck, Pencil,
+} from "lucide-react";
 import Link from "next/link";
+import { IntakePipeline } from "@/components/intake-pipeline";
+import type { IntakeAnalysis } from "@/app/api/analyze-intake/route";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Engagement {
   id: string;
@@ -24,40 +31,31 @@ const STATUS_META: Record<Engagement["status"], { label: string; color: string }
 };
 
 const EMPTY_FORM = {
-  name: "",
-  company: "",
-  url: "",
-  brief: "",
-  notes: "",
-  competitive_set_raw: "",
+  name: "", company: "", url: "", brief: "", notes: "", competitive_set_raw: "",
 };
+
+// ─── Intake states ────────────────────────────────────────────────────────────
+type IntakeState =
+  | { phase: "idle" }
+  | { phase: "extracting"; label: string }
+  | { phase: "analyzing"; label: string }
+  | { phase: "review"; analysis: IntakeAnalysis }
+  | { phase: "form" }
+  | { phase: "error"; message: string };
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoadingDock() {
   const [engagements, setEngagements] = useState<Engagement[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [intake, setIntake] = useState<IntakeState>({ phase: "idle" });
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [extracting, setExtracting] = useState(false);
-  const [extractError, setExtractError] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Accepted file types
   const ACCEPTED = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.markdown";
-  const ACCEPTED_MIME = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/csv",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "text/plain",
-    "text/markdown",
-  ];
 
   useEffect(() => {
     fetch("/api/engagements")
@@ -66,55 +64,91 @@ export default function LoadingDock() {
       .catch(() => null);
   }, []);
 
+  // ── Drag handlers ──────────────────────────────────────────────────────────
   function handleDragEnter(e: React.DragEvent) {
     e.preventDefault();
     dragCounterRef.current++;
     setDragOver(true);
   }
-
   function handleDragLeave(e: React.DragEvent) {
     e.preventDefault();
     dragCounterRef.current--;
     if (dragCounterRef.current === 0) setDragOver(false);
   }
+  function handleDragOver(e: React.DragEvent) { e.preventDefault(); }
 
-  function handleDragOver(e: React.DragEvent) {
+  function handleDrop(e: React.DragEvent) {
     e.preventDefault();
+    dragCounterRef.current = 0;
+    setDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) { processFile(file); return; }
+
+    const text = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text/uri-list");
+    if (text?.trim()) {
+      try {
+        const u = new URL(text.trim());
+        if (u.hostname.includes("docs.google.com") || u.hostname.includes("drive.google.com")) {
+          processGoogleUrl(text.trim());
+        } else {
+          openFormWithUrl(text.trim());
+        }
+      } catch {
+        openFormWithText(text.trim());
+      }
+    }
   }
 
-  async function extractFile(file: File) {
-    setExtracting(true);
-    setExtractError(null);
+  // ── File pipeline: extract → analyze ──────────────────────────────────────
+  async function processFile(file: File) {
+    const label = file.name;
+    setIntake({ phase: "extracting", label });
+
+    // 1. Extract text
+    let extracted: { title: string; text: string; type: string } | null = null;
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/extract-file", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
-        setExtractError(data.error || "Extraction failed");
-        setShowForm(true);
+        setIntake({ phase: "error", message: data.error || "Could not read that file." });
         return;
       }
-      setForm((f) => ({
-        ...f,
-        name: f.name || data.title || "",
-        brief: f.brief || data.text?.slice(0, 1200) || "",
-        notes: data.text && data.text.length > 1200
-          ? data.text.slice(1200, 3000)
-          : f.notes,
-      }));
-      setShowForm(true);
+      extracted = data;
     } catch {
-      setExtractError("Could not read that file. Try again or fill in manually.");
-      setShowForm(true);
-    } finally {
-      setExtracting(false);
+      setIntake({ phase: "error", message: "File extraction failed. Try again or fill in manually." });
+      return;
+    }
+
+    if (!extracted?.text) {
+      setIntake({ phase: "error", message: "No text could be extracted from this file." });
+      return;
+    }
+
+    // 2. Analyze
+    setIntake({ phase: "analyzing", label });
+    try {
+      const res = await fetch("/api/analyze-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: extracted.text, filename: label, type: extracted.type }),
+      });
+      const analysis = await res.json();
+      if (!res.ok) {
+        // Fall back to form with raw text if analysis fails
+        openFormWithExtracted(extracted.title, extracted.text);
+        return;
+      }
+      setIntake({ phase: "review", analysis });
+    } catch {
+      openFormWithExtracted(extracted.title, extracted.text);
     }
   }
 
-  async function extractUrl(url: string) {
-    setExtracting(true);
-    setExtractError(null);
+  async function processGoogleUrl(url: string) {
+    setIntake({ phase: "extracting", label: url });
     try {
       const res = await fetch("/api/extract-file", {
         method: "POST",
@@ -123,66 +157,95 @@ export default function LoadingDock() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setExtractError(data.error || "Could not fetch that URL");
-        setForm((f) => ({ ...f, url }));
-        setShowForm(true);
+        setIntake({ phase: "error", message: data.error });
         return;
       }
-      setForm((f) => ({
-        ...f,
-        url: f.url || url,
-        name: f.name || data.title || "",
-        brief: f.brief || data.text?.slice(0, 1200) || "",
-      }));
-      setShowForm(true);
+      setIntake({ phase: "analyzing", label: data.title || url });
+      const analysisRes = await fetch("/api/analyze-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: data.text, filename: data.title, type: data.type }),
+      });
+      const analysis = await analysisRes.json();
+      if (!analysisRes.ok) { openFormWithExtracted(data.title, data.text); return; }
+      setIntake({ phase: "review", analysis });
     } catch {
-      setExtractError("Could not reach that URL.");
-      setForm((f) => ({ ...f, url }));
-      setShowForm(true);
-    } finally {
-      setExtracting(false);
+      setIntake({ phase: "error", message: "Could not reach that URL." });
     }
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    dragCounterRef.current = 0;
-    setDragOver(false);
+  function openFormWithUrl(url: string) {
+    setForm((f) => ({ ...f, url }));
+    setIntake({ phase: "form" });
+  }
+  function openFormWithText(text: string) {
+    setForm((f) => ({ ...f, brief: text.slice(0, 1200) }));
+    setIntake({ phase: "form" });
+  }
+  function openFormWithExtracted(title: string, text: string) {
+    setForm((f) => ({
+      ...f,
+      name: f.name || title,
+      brief: text.slice(0, 1200),
+      notes: text.length > 1200 ? text.slice(1200, 3000) : f.notes,
+    }));
+    setIntake({ phase: "form" });
+  }
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      extractFile(file);
-      return;
-    }
-
-    // URL or text drop
-    const text = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text/uri-list");
-    if (text?.trim()) {
-      try {
-        const u = new URL(text.trim());
-        // Google Drive URLs → extract
-        if (u.hostname.includes("docs.google.com") || u.hostname.includes("drive.google.com")) {
-          extractUrl(text.trim());
-        } else {
-          setForm((f) => ({ ...f, url: text.trim() }));
-          setShowForm(true);
-        }
-      } catch {
-        setForm((f) => ({ ...f, brief: f.brief ? `${f.brief}\n\n${text}` : text }));
-        setShowForm(true);
+  // Accept analysis → save immediately
+  async function acceptAnalysis(analysis: IntakeAnalysis) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/engagements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: analysis.name,
+          company: analysis.company || null,
+          url: analysis.url || null,
+          brief: analysis.brief || null,
+          notes: analysis.notes || null,
+          competitive_set: analysis.competitive_set || [],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setSaveError(err.error || "Failed to save");
+        return;
       }
+      const created = await res.json();
+      setEngagements((prev) => [created, ...prev]);
+      setIntake({ phase: "idle" });
+      setForm(EMPTY_FORM);
+    } catch {
+      setSaveError("Something went wrong.");
+    } finally {
+      setSaving(false);
     }
   }
 
+  // Edit analysis → open form with pre-filled values
+  function editAnalysis(analysis: IntakeAnalysis) {
+    setForm({
+      name: analysis.name || "",
+      company: analysis.company || "",
+      url: analysis.url || "",
+      brief: analysis.brief || "",
+      notes: analysis.notes || "",
+      competitive_set_raw: (analysis.competitive_set || []).join(", "),
+    });
+    setIntake({ phase: "form" });
+  }
+
+  // Form submit
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError(null);
+    setSaveError(null);
 
     const competitive_set = form.competitive_set_raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+      .split(",").map((s) => s.trim()).filter(Boolean);
 
     try {
       const res = await fetch("/api/engagements", {
@@ -197,18 +260,16 @@ export default function LoadingDock() {
           competitive_set,
         }),
       });
-
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to save");
       }
-
       const created = await res.json();
       setEngagements((prev) => [created, ...prev]);
       setForm(EMPTY_FORM);
-      setShowForm(false);
+      setIntake({ phase: "idle" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setSaveError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -225,8 +286,15 @@ export default function LoadingDock() {
     );
   }
 
-  const active = engagements.filter((e) => e.status !== "archived");
+  function reset() {
+    setIntake({ phase: "idle" });
+    setForm(EMPTY_FORM);
+    setSaveError(null);
+  }
+
+  const active   = engagements.filter((e) => e.status !== "archived");
   const archived = engagements.filter((e) => e.status === "archived");
+  const isIdle   = intake.phase === "idle";
 
   return (
     <main
@@ -236,6 +304,20 @@ export default function LoadingDock() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED}
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) processFile(file);
+          e.target.value = "";
+        }}
+      />
 
       {/* Header */}
       <div style={{ marginBottom: 40 }}>
@@ -259,84 +341,48 @@ export default function LoadingDock() {
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: 0, lineHeight: 1.6, maxWidth: 500 }}>
           Where raw material enters. Drop a file, paste a URL, or add what you have —
-          Atlas builds from incomplete inputs.
+          Atlas analyzes and structures the engagement.
         </p>
       </div>
 
-      {/* Hidden file input for click-to-upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ACCEPTED}
-        aria-hidden="true"
-        tabIndex={-1}
-        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) extractFile(file);
-          e.target.value = "";
-        }}
-      />
-
-      {/* Intake zone — visible when form is not showing */}
-      {!showForm && (
-        <div
-          style={{
-            padding: "40px 32px",
-            border: `2px dashed ${dragOver ? "var(--accent-secondary)" : "var(--border)"}`,
-            borderRadius: "var(--radius-card)",
-            background: dragOver ? "var(--accent-primary)" : "transparent",
-            marginBottom: 40,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 14,
-            transition: "border-color 0.15s, background 0.15s",
-            textAlign: "center",
-          }}
-        >
+      {/* ── Drop zone (idle) ──────────────────────────────────────────────────── */}
+      {isIdle && (
+        <div style={{
+          padding: "40px 32px",
+          border: `2px dashed ${dragOver ? "var(--accent-secondary)" : "var(--border)"}`,
+          borderRadius: "var(--radius-card)",
+          background: dragOver ? "var(--accent-primary)" : "transparent",
+          marginBottom: 40,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+          transition: "border-color 0.15s, background 0.15s",
+          textAlign: "center",
+        }}>
           <div style={{
             width: 52, height: 52,
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 12,
-            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            {extracting
-              ? <Loader2 size={22} style={{ color: "var(--accent-secondary)", animation: "pulse-text 1.8s ease-in-out infinite" }} aria-hidden="true" />
-              : dragOver
+            {dragOver
               ? <UploadCloud size={22} style={{ color: "var(--accent-secondary)" }} aria-hidden="true" />
               : <FileText size={22} style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
             }
           </div>
-
           <div>
             <div style={{
-              fontSize: 16, fontWeight: 500,
+              fontSize: 16, fontWeight: 500, letterSpacing: "-0.02em", marginBottom: 6,
               color: dragOver ? "var(--accent-secondary)" : "var(--text-primary)",
-              letterSpacing: "-0.02em", marginBottom: 6, transition: "color 0.15s",
+              transition: "color 0.15s",
             }}>
-              {extracting ? "Extracting text…" : dragOver ? "Drop to start" : "Drop a file to begin"}
+              {dragOver ? "Drop to analyze" : "Drop a file — Atlas takes it from there"}
             </div>
             <div style={{ fontSize: 13, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-              PDF · Word (.docx) · Excel · PowerPoint · Markdown · CSV
+              PDF · Word · Excel · PowerPoint · Markdown · CSV
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2, opacity: 0.7 }}>
-              Google Docs / Sheets / Slides (public links supported)
+            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2, opacity: 0.65 }}>
+              Google Docs / Sheets / Slides · public links
             </div>
           </div>
-
-          {extractError && (
-            <div role="alert" style={{
-              padding: "10px 14px", maxWidth: 420,
-              background: "var(--bg-primary)", border: "1px solid var(--error)",
-              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
-            }}>
-              {extractError}
-            </div>
-          )}
-
-          {!dragOver && !extracting && (
+          {!dragOver && (
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
               <button
                 type="button"
@@ -355,7 +401,7 @@ export default function LoadingDock() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(true)}
+                onClick={() => setIntake({ phase: "form" })}
                 style={{
                   display: "flex", alignItems: "center", gap: 6,
                   height: 40, padding: "0 18px",
@@ -373,23 +419,76 @@ export default function LoadingDock() {
         </div>
       )}
 
-      {/* Intake form */}
-      {showForm && (
+      {/* ── Extracting / Analyzing — pipeline animation ───────────────────────── */}
+      {(intake.phase === "extracting" || intake.phase === "analyzing") && (
+        <IntakePipeline phase={intake.phase} label={intake.label} />
+      )}
+
+      {/* ── Error ─────────────────────────────────────────────────────────────── */}
+      {intake.phase === "error" && (
+        <div style={{
+          padding: "24px 28px", marginBottom: 40,
+          background: "var(--bg-surface)", border: "1px solid var(--error)",
+          borderRadius: "var(--radius-card)",
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: "var(--error)",
+            fontFamily: "var(--font-mono)", marginBottom: 8,
+          }}>
+            Intake Error
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.6 }}>
+            {intake.message}
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setIntake({ phase: "form" })}
+              style={{
+                height: 36, padding: "0 16px",
+                background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
+                borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                textTransform: "uppercase", cursor: "pointer",
+              }}
+            >
+              Fill Manually
+            </button>
+            <button
+              onClick={reset}
+              style={{
+                height: 36, padding: "0 16px",
+                background: "transparent", border: "1px solid var(--border)",
+                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                textTransform: "uppercase", cursor: "pointer",
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Analysis Review ───────────────────────────────────────────────────── */}
+      {intake.phase === "review" && (
+        <AnalysisReview
+          analysis={intake.analysis}
+          saving={saving}
+          saveError={saveError}
+          onAccept={acceptAnalysis}
+          onEdit={editAnalysis}
+          onDismiss={reset}
+        />
+      )}
+
+      {/* ── Manual Form ───────────────────────────────────────────────────────── */}
+      {intake.phase === "form" && (
         <form onSubmit={handleSubmit} style={{
           padding: "28px 28px 24px",
           background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
           borderRadius: "var(--radius-card)", marginBottom: 40,
         }}>
-          {extractError && (
-            <div role="alert" style={{
-              padding: "10px 14px", marginBottom: 20,
-              background: "var(--bg-primary)", border: "1px solid var(--error)",
-              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
-            }}>
-              {extractError} — fill in the details below manually.
-            </div>
-          )}
-
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24,
           }}>
@@ -401,7 +500,7 @@ export default function LoadingDock() {
             </div>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setError(null); }}
+              onClick={reset}
               aria-label="Cancel and close form"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -415,19 +514,16 @@ export default function LoadingDock() {
           </div>
 
           {[
-            { key: "name", label: "Name", required: true, placeholder: "What are you calling this engagement?" },
+            { key: "name",    label: "Name",    required: true,  placeholder: "What are you calling this engagement?" },
             { key: "company", label: "Company", required: false, placeholder: "Client or company name" },
-            { key: "url", label: "URL", required: false, placeholder: "https://" },
+            { key: "url",     label: "URL",     required: false, placeholder: "https://" },
           ].map(({ key, label, required, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
-              <label
-                htmlFor={`field-${key}`}
-                style={{
-                  display: "block", fontSize: 10, fontWeight: 600,
-                  letterSpacing: "0.06em", textTransform: "uppercase",
-                  color: "var(--text-tertiary)", marginBottom: 6,
-                }}
-              >
+              <label htmlFor={`field-${key}`} style={{
+                display: "block", fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                color: "var(--text-tertiary)", marginBottom: 6,
+              }}>
                 {label}{required && <span aria-hidden="true" style={{ color: "var(--accent-secondary)", marginLeft: 3 }}>*</span>}
               </label>
               <input
@@ -449,18 +545,15 @@ export default function LoadingDock() {
           ))}
 
           {[
-            { key: "brief", label: "Brief", placeholder: "What's the engagement? What problem are you solving? Use whatever you have — a sentence is enough." },
-            { key: "notes", label: "Notes", placeholder: "Half-formed tensions, hypotheses, things that feel off. Incomplete is fine." },
+            { key: "brief", label: "Brief", placeholder: "What's the engagement? What problem are you solving?" },
+            { key: "notes", label: "Notes", placeholder: "Tensions, hypotheses, things that feel off." },
           ].map(({ key, label, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
-              <label
-                htmlFor={`field-${key}`}
-                style={{
-                  display: "block", fontSize: 10, fontWeight: 600,
-                  letterSpacing: "0.06em", textTransform: "uppercase",
-                  color: "var(--text-tertiary)", marginBottom: 6,
-                }}
-              >
+              <label htmlFor={`field-${key}`} style={{
+                display: "block", fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                color: "var(--text-tertiary)", marginBottom: 6,
+              }}>
                 {label}
               </label>
               <textarea
@@ -480,14 +573,11 @@ export default function LoadingDock() {
           ))}
 
           <div style={{ marginBottom: 28 }}>
-            <label
-              htmlFor="field-competitive-set"
-              style={{
-                display: "block", fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                color: "var(--text-tertiary)", marginBottom: 6,
-              }}
-            >
+            <label htmlFor="field-competitive-set" style={{
+              display: "block", fontSize: 10, fontWeight: 600,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              color: "var(--text-tertiary)", marginBottom: 6,
+            }}>
               Competitive Set
             </label>
             <input
@@ -495,7 +585,7 @@ export default function LoadingDock() {
               type="text"
               value={form.competitive_set_raw}
               onChange={(e) => setForm((f) => ({ ...f, competitive_set_raw: e.target.value }))}
-              placeholder="Competitor A, Competitor B, Competitor C"
+              placeholder="Competitor A, Competitor B"
               aria-describedby="competitive-set-hint"
               style={{
                 width: "100%", height: 48, padding: "0 14px", boxSizing: "border-box",
@@ -505,20 +595,17 @@ export default function LoadingDock() {
               }}
             />
             <div id="competitive-set-hint" style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 5 }}>
-              Comma-separated. Add what you know now.
+              Comma-separated.
             </div>
           </div>
 
-          {error && (
-            <div
-              role="alert"
-              style={{
-                padding: "12px 14px", marginBottom: 16,
-                background: "var(--bg-primary)", border: "1px solid var(--error)",
-                borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
-              }}
-            >
-              {error}
+          {saveError && (
+            <div role="alert" style={{
+              padding: "12px 14px", marginBottom: 16,
+              background: "var(--bg-primary)", border: "1px solid var(--error)",
+              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+            }}>
+              {saveError}
             </div>
           )}
 
@@ -538,16 +625,17 @@ export default function LoadingDock() {
                 transition: "opacity 0.15s",
               }}
             >
-              {saving ? "Saving..." : "Save Engagement"}
+              {saving ? "Saving…" : "Save Engagement"}
             </button>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setError(null); }}
+              onClick={reset}
               style={{
                 height: 48, padding: "0 20px",
                 background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)", cursor: "pointer",
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+                cursor: "pointer", fontSize: 11, fontWeight: 600,
+                letterSpacing: "0.06em", textTransform: "uppercase",
               }}
             >
               Cancel
@@ -556,7 +644,7 @@ export default function LoadingDock() {
         </form>
       )}
 
-      {/* Active engagements */}
+      {/* ── Active engagements ────────────────────────────────────────────────── */}
       {active.length > 0 && (
         <div style={{ marginBottom: 48 }}>
           <div style={{
@@ -565,11 +653,7 @@ export default function LoadingDock() {
           }}>
             Engagements — {active.length}
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 10,
-          }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
             {active.map((eng) => (
               <EngagementCard key={eng.id} engagement={eng} onArchive={handleArchive} />
             ))}
@@ -577,11 +661,7 @@ export default function LoadingDock() {
         </div>
       )}
 
-      {active.length === 0 && !showForm && (
-        <div style={{ height: 8 }} />
-      )}
-
-      {/* Archived */}
+      {/* ── Archived ─────────────────────────────────────────────────────────── */}
       {archived.length > 0 && (
         <div>
           <div style={{
@@ -590,11 +670,7 @@ export default function LoadingDock() {
           }}>
             Archived — {archived.length}
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 8,
-          }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 8 }}>
             {archived.map((eng) => (
               <EngagementCard key={eng.id} engagement={eng} onArchive={handleArchive} />
             ))}
@@ -605,6 +681,248 @@ export default function LoadingDock() {
   );
 }
 
+// ─── Analysis Review component ────────────────────────────────────────────────
+
+function AnalysisReview({
+  analysis,
+  saving,
+  saveError,
+  onAccept,
+  onEdit,
+  onDismiss,
+}: {
+  analysis: IntakeAnalysis;
+  saving: boolean;
+  saveError: string | null;
+  onAccept: (a: IntakeAnalysis) => void;
+  onEdit: (a: IntakeAnalysis) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div style={{
+      marginBottom: 40,
+      background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
+      borderRadius: "var(--radius-card)", overflow: "hidden",
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: "20px 24px",
+        background: "var(--accent-primary)",
+        borderBottom: "1px solid var(--border)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--accent-secondary)",
+            fontFamily: "var(--font-mono)", marginBottom: 4,
+          }}>
+            Atlas · {analysis.doc_type}
+          </div>
+          <div style={{
+            fontSize: 20, fontWeight: 600, color: "var(--text-primary)",
+            letterSpacing: "-0.03em", lineHeight: 1.2,
+          }}>
+            {analysis.name}
+          </div>
+          {analysis.company && (
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 2 }}>
+              {analysis.company}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss analysis"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 32, height: 32, padding: 0, flexShrink: 0,
+            background: "transparent", border: "none",
+            borderRadius: 4, color: "var(--text-tertiary)", cursor: "pointer",
+          }}
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Brief */}
+      {analysis.brief && (
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: "var(--text-tertiary)",
+            marginBottom: 8,
+          }}>
+            Brief
+          </div>
+          <p style={{ fontSize: 14, color: "var(--text-primary)", lineHeight: 1.7, margin: 0 }}>
+            {analysis.brief}
+          </p>
+        </div>
+      )}
+
+      {/* Signals — 3-column */}
+      {analysis.signals?.length > 0 && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+          borderBottom: "1px solid var(--border)",
+        }}>
+          {analysis.signals.map((sig, i) => (
+            <div key={i} style={{
+              padding: "16px 20px",
+              borderRight: i < 2 ? "1px solid var(--border)" : "none",
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: "var(--accent-muted)",
+                fontFamily: "var(--font-mono)", marginBottom: 6,
+              }}>
+                {sig.label}
+              </div>
+              <p style={{ fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.6, margin: 0 }}>
+                {sig.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Notes / tensions */}
+      {analysis.notes && (
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 8,
+          }}>
+            Tensions & Observations
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.75, whiteSpace: "pre-line" }}>
+            {analysis.notes}
+          </div>
+        </div>
+      )}
+
+      {/* Next steps */}
+      {analysis.next_steps?.length > 0 && (
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 10,
+          }}>
+            Next Steps
+          </div>
+          <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+            {analysis.next_steps.map((step, i) => (
+              <li key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{
+                  fontSize: 10, fontFamily: "var(--font-mono)",
+                  color: "var(--accent-secondary)", flexShrink: 0,
+                  marginTop: 2, minWidth: 16,
+                }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6 }}>
+                  {step}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Competitive set */}
+      {analysis.competitive_set?.length > 0 && (
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{
+              fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
+              textTransform: "uppercase", color: "var(--text-tertiary)",
+              marginRight: 4,
+            }}>
+              vs.
+            </span>
+            {analysis.competitive_set.map((c) => (
+              <span key={c} style={{
+                padding: "3px 10px",
+                background: "var(--bg-elevated)", border: "1px solid var(--border)",
+                borderRadius: 4, fontSize: 11, color: "var(--text-tertiary)",
+              }}>
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ padding: "16px 24px" }}>
+        {saveError && (
+          <div role="alert" style={{
+            padding: "10px 14px", marginBottom: 12,
+            background: "var(--bg-primary)", border: "1px solid var(--error)",
+            borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+          }}>
+            {saveError}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => onAccept(analysis)}
+            disabled={saving}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              height: 44, padding: "0 20px",
+              background: saving ? "var(--bg-elevated)" : "var(--accent-primary)",
+              border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
+              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+              cursor: saving ? "not-allowed" : "pointer",
+              fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+            }}
+          >
+            {saving
+              ? <Loader2 size={12} style={{ animation: "pulse-text 1.8s ease-in-out infinite" }} aria-hidden="true" />
+              : <CheckCheck size={12} aria-hidden="true" />
+            }
+            {saving ? "Saving…" : "Save Engagement"}
+          </button>
+          <button
+            onClick={() => onEdit(analysis)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              height: 44, padding: "0 18px",
+              background: "transparent", border: "1px solid var(--border)",
+              borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
+              cursor: "pointer", fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+            }}
+          >
+            <Pencil size={11} aria-hidden="true" />
+            Edit Before Saving
+          </button>
+          <button
+            onClick={onDismiss}
+            style={{
+              height: 44, padding: "0 16px",
+              background: "transparent", border: "none",
+              borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+              cursor: "pointer", fontSize: 11, fontWeight: 600,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+            }}
+          >
+            Discard
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 10 }}>
+          <ChevronRight size={10} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} aria-hidden="true" />
+          After saving, query this engagement from the Operating Room.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Engagement Card ──────────────────────────────────────────────────────────
+
 function EngagementCard({
   engagement: eng,
   onArchive,
@@ -612,52 +930,35 @@ function EngagementCard({
   engagement: Engagement;
   onArchive: (id: string) => void;
 }) {
-  const statusMeta = STATUS_META[eng.status];
+  const statusMeta   = STATUS_META[eng.status];
   const displayLabel = eng.company || eng.name;
-  const isArchived = eng.status === "archived";
-
-  // Generate initials for visual header
-  const initials = displayLabel
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+  const isArchived   = eng.status === "archived";
+  const initials     = displayLabel
+    .split(/\s+/).slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "").join("");
 
   return (
     <div style={{
       background: "var(--bg-surface)", border: "1px solid var(--border)",
-      borderRadius: "var(--radius-card)",
-      overflow: "hidden",
+      borderRadius: "var(--radius-card)", overflow: "hidden",
       opacity: isArchived ? 0.6 : 1,
-      transition: "border-color 0.15s",
       display: "flex", flexDirection: "column",
     }}>
       {/* Visual header */}
       <div style={{
-        height: 100,
-        background: "var(--bg-elevated)",
+        height: 100, background: "var(--bg-elevated)",
         borderBottom: "1px solid var(--border)",
-        padding: "16px 20px",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        position: "relative",
-        overflow: "hidden",
+        padding: "16px 20px", display: "flex", flexDirection: "column",
+        justifyContent: "space-between", position: "relative", overflow: "hidden",
       }}>
-        {/* Large watermark initials */}
         <div aria-hidden="true" style={{
-          position: "absolute",
-          right: 16, bottom: -8,
-          fontSize: 72, fontWeight: 700,
-          letterSpacing: "-0.05em",
-          color: "var(--bg-primary)",
-          lineHeight: 1,
-          userSelect: "none",
-          pointerEvents: "none",
+          position: "absolute", right: 16, bottom: -8,
+          fontSize: 72, fontWeight: 700, letterSpacing: "-0.05em",
+          color: "var(--bg-primary)", lineHeight: 1,
+          userSelect: "none", pointerEvents: "none",
         }}>
           {initials}
         </div>
-        {/* Status dot */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{
             width: 6, height: 6, borderRadius: "50%",
@@ -672,7 +973,6 @@ function EngagementCard({
             {statusMeta.label}
           </span>
         </div>
-        {/* Company name */}
         <div style={{
           fontSize: 20, fontWeight: 600, color: "var(--text-primary)",
           letterSpacing: "-0.03em", lineHeight: 1.1,
@@ -682,28 +982,21 @@ function EngagementCard({
         </div>
       </div>
 
-      {/* Card body */}
+      {/* Body */}
       <div style={{ padding: "16px 20px 12px", flex: 1 }}>
         {eng.company && (
-          <div style={{
-            fontSize: 12, color: "var(--text-tertiary)",
-            marginBottom: 6, fontWeight: 500,
-          }}>
+          <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 6, fontWeight: 500 }}>
             {eng.name}
           </div>
         )}
-
         {eng.brief && (
           <p style={{
-            fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px",
-            lineHeight: 1.6,
-            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-            overflow: "hidden",
+            fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.6,
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
           }}>
             {eng.brief}
           </p>
         )}
-
         {eng.competitive_set.length > 0 && (
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {eng.competitive_set.map((c) => (
@@ -719,10 +1012,9 @@ function EngagementCard({
         )}
       </div>
 
-      {/* Card footer */}
+      {/* Footer */}
       <div style={{
-        padding: "12px 20px",
-        borderTop: "1px solid var(--border)",
+        padding: "12px 20px", borderTop: "1px solid var(--border)",
         display: "flex", alignItems: "center", gap: 6,
       }}>
         <Link
@@ -732,8 +1024,9 @@ function EngagementCard({
             display: "flex", alignItems: "center", gap: 5,
             height: 36, padding: "0 14px",
             background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-            borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)", textDecoration: "none",
-            fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+            borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+            textDecoration: "none", fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.06em", textTransform: "uppercase",
             flex: 1, justifyContent: "center",
           }}
         >
