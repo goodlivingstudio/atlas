@@ -1,6 +1,29 @@
 export type KnowledgeLayer = "core" | "frameworks" | "clients" | "market" | "live";
 export type AtlasMode = "DIAGNOSIS" | "PRESCRIPTION";
 
+export type ConfidenceTier =
+  | "established_fact"
+  | "informed_inference"
+  | "working_assumption"
+  | "speculation";
+
+export type TopicTag =
+  | "atlas-doctrine"
+  | "atlas-protocol"
+  | "brand-strategy"
+  | "product-strategy"
+  | "competitive-intelligence"
+  | "audience-research"
+  | "positioning"
+  | "innovation"
+  | "behavioral-economics"
+  | "challenger-brand"
+  | "organizational-strategy"
+  | "creative-strategy"
+  | "data-analytics"
+  | "jobs-to-be-done"
+  | "mental-availability";
+
 export interface Document {
   id: string;
   title: string;

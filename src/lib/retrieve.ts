@@ -1,13 +1,24 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { VoyageAIClient } from "voyageai";
 import { getServiceClient } from "./supabase";
 import { generateEmbedding } from "./embeddings";
 import type { AtlasMode, KnowledgeLayer, RetrievalResult, QueryResponse } from "./types";
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
 
 let _anthropic: Anthropic | null = null;
 function getAnthropic() {
   if (!_anthropic) _anthropic = new Anthropic();
   return _anthropic;
 }
+
+let _voyage: VoyageAIClient | null = null;
+function getVoyage() {
+  if (!_voyage) _voyage = new VoyageAIClient({ apiKey: process.env.VOYAGE_API_KEY });
+  return _voyage;
+}
+
+// ─── System Prompts ───────────────────────────────────────────────────────────
 
 const SHARED_PRINCIPLES = `
 INFORMATION QUALITY — label all claims:
@@ -47,6 +58,42 @@ ${SHARED_PRINCIPLES}
 Answer using ONLY the provided knowledge base context.`,
 };
 
+// ─── Pinned Core ──────────────────────────────────────────────────────────────
+// Core doctrine and protocol are always included in every context window.
+// They are the frame through which everything else is interpreted.
+// They do NOT compete for retrieval slots — they are prepended unconditionally.
+
+async function fetchPinnedCore(): Promise<RetrievalResult[]> {
+  const supabase = getServiceClient();
+
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("id, title, layer, source_path, content, metadata, created_at, updated_at")
+    .eq("layer", "core")
+    .order("created_at", { ascending: true });
+
+  if (!docs?.length) return [];
+
+  const docIds = docs.map((d) => d.id);
+  const { data: chunks } = await supabase
+    .from("document_chunks")
+    .select("id, document_id, chunk_index, content, token_count, metadata, created_at")
+    .in("document_id", docIds)
+    .order("chunk_index", { ascending: true });
+
+  if (!chunks?.length) return [];
+
+  const docMap = new Map(docs.map((d) => [d.id, d]));
+
+  return chunks.map((chunk) => ({
+    chunk: { ...chunk, embedding: [] },
+    document: docMap.get(chunk.document_id)!,
+    similarity: 1.0, // pinned — treated as maximally relevant
+  }));
+}
+
+// ─── Hybrid Retrieval ─────────────────────────────────────────────────────────
+
 export async function retrieveChunks(
   query: string,
   options: { layer?: KnowledgeLayer; topK?: number } = {}
@@ -56,33 +103,55 @@ export async function retrieveChunks(
 
   const queryEmbedding = await generateEmbedding(query);
 
-  const { data, error } = await supabase.rpc("match_chunks", {
+  // Try hybrid search first; fall back to semantic-only if FTS column not yet populated
+  const { data, error } = await supabase.rpc("hybrid_search", {
+    query_text: query,
     query_embedding: JSON.stringify(queryEmbedding),
     match_count: topK,
     filter_layer: layer || null,
+    rrf_k: 60,
   });
 
   if (error) {
-    throw new Error(`Retrieval failed: ${error.message}`);
+    // Fallback to original match_chunks if hybrid not available
+    const { data: fallback, error: fallbackError } = await supabase.rpc("match_chunks", {
+      query_embedding: JSON.stringify(queryEmbedding),
+      match_count: topK,
+      filter_layer: layer || null,
+    });
+    if (fallbackError) throw new Error(`Retrieval failed: ${fallbackError.message}`);
+    return buildResults(fallback || [], supabase);
   }
 
-  const documentIds = [...new Set(data.map((r: { document_id: string }) => r.document_id))];
+  return buildResults(data || [], supabase);
+}
+
+type RawChunkRow = {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  token_count: number;
+  metadata: Record<string, unknown>;
+  similarity: number;
+};
+
+async function buildResults(
+  rows: RawChunkRow[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<RetrievalResult[]> {
+  if (!rows.length) return [];
+
+  const documentIds = [...new Set(rows.map((r) => r.document_id))];
   const { data: documents } = await supabase
     .from("documents")
     .select("*")
     .in("id", documentIds);
 
-  const docMap = new Map(documents?.map((d: { id: string }) => [d.id, d]) || []);
+  const docMap = new Map<string, unknown>(documents?.map((d: { id: string }) => [d.id, d]) || []);
 
-  return data.map((row: {
-    id: string;
-    document_id: string;
-    chunk_index: number;
-    content: string;
-    token_count: number;
-    metadata: Record<string, unknown>;
-    similarity: number;
-  }) => ({
+  return rows.map((row) => ({
     chunk: {
       id: row.id,
       document_id: row.document_id,
@@ -93,27 +162,86 @@ export async function retrieveChunks(
       embedding: [],
       created_at: "",
     },
-    document: docMap.get(row.document_id),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    document: docMap.get(row.document_id) as any,
     similarity: row.similarity,
   }));
 }
+
+// ─── Reranker ─────────────────────────────────────────────────────────────────
+// Voyage rerank-2 re-scores retrieved candidates using a cross-encoder model
+// that evaluates the query and each chunk together (more accurate than embedding similarity).
+// Flow: retrieve 20 → rerank → take top 5.
+
+async function rerank(
+  query: string,
+  results: RetrievalResult[],
+  topK: number
+): Promise<RetrievalResult[]> {
+  if (!results.length) return results;
+
+  try {
+    const response = await getVoyage().rerank({
+      model: "rerank-2",
+      query,
+      documents: results.map((r) => r.chunk.content),
+      topK,
+    });
+
+    return (response.data || []).map((item) => {
+      const idx = item.index ?? 0;
+      return {
+        ...results[idx],
+        similarity: item.relevanceScore ?? results[idx].similarity,
+      };
+    });
+  } catch {
+    // If reranker fails (e.g. quota), return original order truncated
+    return results.slice(0, topK);
+  }
+}
+
+// ─── Query ────────────────────────────────────────────────────────────────────
 
 export async function queryKnowledgeBase(
   query: string,
   options: { mode?: AtlasMode; layer?: KnowledgeLayer; topK?: number } = {}
 ): Promise<QueryResponse> {
-  const { mode = "DIAGNOSIS", layer, topK } = options;
-  const results = await retrieveChunks(query, { layer, topK });
+  const { mode = "DIAGNOSIS", layer, topK = 5 } = options;
 
-  const context = results
-    .map((r, i) =>
-      `[Source ${i + 1}: "${r.document.title}" · ${r.document.layer} · chunk ${r.chunk.chunk_index}]\n${r.chunk.content}`
-    )
+  // 1. Retrieve broadly (20 candidates for reranker)
+  const [pinnedCore, candidates] = await Promise.all([
+    fetchPinnedCore(),
+    retrieveChunks(query, { layer, topK: 20 }),
+  ]);
+
+  // 2. Filter out core chunks from candidates (already pinned, avoid duplication)
+  const pinnedIds = new Set(pinnedCore.map((r) => r.chunk.id));
+  const filteredCandidates = candidates.filter((r) => !pinnedIds.has(r.chunk.id));
+
+  // 3. Rerank candidates, take top K
+  const reranked = await rerank(query, filteredCandidates, topK);
+
+  // 4. Assemble final context: pinned core first, then reranked results
+  const allResults = [...pinnedCore, ...reranked];
+
+  // 5. Build context string with numbered sources
+  const context = allResults
+    .map((r, i) => {
+      const heading = r.chunk.metadata?.section_heading
+        ? ` § ${r.chunk.metadata.section_heading}`
+        : "";
+      const confidence = r.chunk.metadata?.confidence_tier
+        ? ` [${String(r.chunk.metadata.confidence_tier).replace(/_/g, " ")}]`
+        : "";
+      return `[Source ${i + 1}: "${r.document.title}" · ${r.document.layer}${heading}${confidence}]\n${r.chunk.content}`;
+    })
     .join("\n\n---\n\n");
 
+  // 6. Synthesize with Claude
   const message = await getAnthropic().messages.create({
     model: "claude-sonnet-4-6-20250514",
-    max_tokens: 1024,
+    max_tokens: 1500,
     system: SYSTEM_PROMPTS[mode],
     messages: [
       {
@@ -127,9 +255,9 @@ export async function queryKnowledgeBase(
 
   return {
     query,
-    results,
+    results: allResults,
     answer,
-    sources: results.map((r) => ({
+    sources: allResults.map((r) => ({
       document_title: r.document.title,
       layer: r.document.layer,
       chunk_index: r.chunk.chunk_index,

@@ -13,6 +13,13 @@ async function main() {
     layer: "frameworks",
     sourcePath: "knowledge/frameworks/frameworks-reference.md",
     content,
+    topics: [
+      "brand-strategy", "product-strategy", "competitive-intelligence",
+      "positioning", "innovation", "behavioral-economics",
+      "challenger-brand", "jobs-to-be-done", "mental-availability",
+      "organizational-strategy",
+    ],
+    confidenceDefault: "established_fact",
     metadata: { version: "1.0", type: "frameworks-reference" },
   });
 

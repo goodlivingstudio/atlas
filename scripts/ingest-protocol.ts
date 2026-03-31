@@ -13,7 +13,9 @@ async function main() {
     layer: "core",
     sourcePath: "knowledge/core/agent-operating-protocol.md",
     content,
-    metadata: { version: "1.0", type: "protocol" },
+    topics: ["atlas-protocol", "atlas-doctrine"],
+    confidenceDefault: "established_fact",
+    metadata: { version: "1.0", type: "protocol", pinned: true },
   });
 
   console.log(`\nDone: ${result.chunkCount} chunks, ~${result.totalTokens} tokens`);

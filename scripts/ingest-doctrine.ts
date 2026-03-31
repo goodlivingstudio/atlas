@@ -14,11 +14,9 @@ async function main() {
     layer: "core",
     sourcePath: "knowledge/core/atlas-doctrine.md",
     content,
-    metadata: {
-      version: "1.0",
-      type: "doctrine",
-      author: "Jeremy Grant",
-    },
+    topics: ["atlas-doctrine", "brand-strategy", "competitive-intelligence", "creative-strategy"],
+    confidenceDefault: "established_fact",
+    metadata: { version: "1.1", type: "doctrine", pinned: true },
   });
 
   console.log("\nIngestion complete:");
