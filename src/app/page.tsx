@@ -3,12 +3,23 @@
 import { useState } from "react";
 import { ModeSelector } from "@/components/mode-selector";
 import { KnowledgeStatus } from "@/components/knowledge-status";
+import { CerebroBand, useCerebro, type Signal } from "@/components/cerebro";
 import { LAYER_META, type AtlasMode, type KnowledgeLayer, type QueryResponse } from "@/lib/types";
 import { Search, Loader2, ChevronRight, Layers, Pin, Sparkles } from "lucide-react";
 
 export default function Home() {
   const [mode, setMode] = useState<AtlasMode>("DIAGNOSIS");
   const [query, setQuery] = useState("");
+  const cerebro = useCerebro();
+
+  function handleDeliberate(signal: Signal) {
+    setQuery(signal.body);
+    setMode("DIAGNOSIS");
+    // Scroll to query input
+    setTimeout(() => {
+      document.getElementById("query-input")?.focus();
+    }, 100);
+  }
   const [filterLayer, setFilterLayer] = useState<KnowledgeLayer | "">("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
@@ -61,6 +72,16 @@ export default function Home() {
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>
           Set your mode, ask your question.
         </p>
+      </div>
+
+      {/* Cerebro — intelligence band */}
+      <div style={{ margin: "0 -24px 40px", width: "calc(100% + 48px)" }}>
+        <CerebroBand
+          signals={cerebro.signals}
+          loading={cerebro.loading}
+          error={cerebro.error}
+          onDeliberate={handleDeliberate}
+        />
       </div>
 
       {/* Knowledge base status */}
