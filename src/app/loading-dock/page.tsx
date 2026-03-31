@@ -161,29 +161,33 @@ export default function LoadingDock() {
           </div>
 
           {[
-            { key: "name", label: "Name *", placeholder: "What are you calling this engagement?" },
-            { key: "company", label: "Company", placeholder: "Client or company name" },
-            { key: "url", label: "URL", placeholder: "https://" },
-          ].map(({ key, label, placeholder }) => (
+            { key: "name", label: "Name", required: true, placeholder: "What are you calling this engagement?" },
+            { key: "company", label: "Company", required: false, placeholder: "Client or company name" },
+            { key: "url", label: "URL", required: false, placeholder: "https://" },
+          ].map(({ key, label, required, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
-              <label style={{
-                display: "block", fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                color: "var(--text-tertiary)", marginBottom: 6,
-              }}>
-                {label}
+              <label
+                htmlFor={`field-${key}`}
+                style={{
+                  display: "block", fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                  color: "var(--text-tertiary)", marginBottom: 6,
+                }}
+              >
+                {label}{required && <span aria-hidden="true" style={{ color: "var(--accent-secondary)", marginLeft: 3 }}>*</span>}
               </label>
               <input
-                type="text"
+                id={`field-${key}`}
+                type={key === "url" ? "url" : "text"}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 placeholder={placeholder}
-                required={key === "name"}
+                required={required}
+                aria-required={required}
                 style={{
-                  width: "100%", padding: "10px 12px", boxSizing: "border-box",
+                  width: "100%", height: 44, padding: "0 12px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
-                  borderRadius: 4, color: "var(--text-primary)", fontSize: 13,
-                  outline: "none",
+                  borderRadius: 4, color: "var(--text-primary)", fontSize: 13, outline: "none",
                 }}
               />
             </div>
@@ -194,59 +198,70 @@ export default function LoadingDock() {
             { key: "notes", label: "Notes", placeholder: "Half-formed tensions, hypotheses, things that feel off. Incomplete is fine." },
           ].map(({ key, label, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
-              <label style={{
-                display: "block", fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                color: "var(--text-tertiary)", marginBottom: 6,
-              }}>
+              <label
+                htmlFor={`field-${key}`}
+                style={{
+                  display: "block", fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                  color: "var(--text-tertiary)", marginBottom: 6,
+                }}
+              >
                 {label}
               </label>
               <textarea
+                id={`field-${key}`}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 placeholder={placeholder}
                 rows={3}
                 style={{
-                  width: "100%", padding: "10px 12px", boxSizing: "border-box",
+                  width: "100%", padding: "12px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
                   borderRadius: 4, color: "var(--text-primary)", fontSize: 13,
-                  outline: "none", resize: "vertical", lineHeight: 1.6,
-                  fontFamily: "inherit",
+                  outline: "none", resize: "vertical", lineHeight: 1.6, fontFamily: "inherit",
                 }}
               />
             </div>
           ))}
 
           <div style={{ marginBottom: 24 }}>
-            <label style={{
-              display: "block", fontSize: 10, fontWeight: 600,
-              letterSpacing: "0.06em", textTransform: "uppercase",
-              color: "var(--text-tertiary)", marginBottom: 6,
-            }}>
+            <label
+              htmlFor="field-competitive-set"
+              style={{
+                display: "block", fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                color: "var(--text-tertiary)", marginBottom: 6,
+              }}
+            >
               Competitive Set
             </label>
             <input
+              id="field-competitive-set"
               type="text"
               value={form.competitive_set_raw}
               onChange={(e) => setForm((f) => ({ ...f, competitive_set_raw: e.target.value }))}
               placeholder="Competitor A, Competitor B, Competitor C"
+              aria-describedby="competitive-set-hint"
               style={{
-                width: "100%", padding: "10px 12px", boxSizing: "border-box",
+                width: "100%", height: 44, padding: "0 12px", boxSizing: "border-box",
                 background: "var(--bg-primary)", border: "1px solid var(--border)",
                 borderRadius: 4, color: "var(--text-primary)", fontSize: 13, outline: "none",
               }}
             />
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 5 }}>
+            <div id="competitive-set-hint" style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 5 }}>
               Comma-separated. Add what you know now.
             </div>
           </div>
 
           {error && (
-            <div style={{
-              padding: "10px 12px", marginBottom: 16,
-              background: "var(--bg-primary)", border: "1px solid var(--error)",
-              borderRadius: 4, color: "var(--error)", fontSize: 12,
-            }}>
+            <div
+              role="alert"
+              style={{
+                padding: "10px 12px", marginBottom: 16,
+                background: "var(--bg-primary)", border: "1px solid var(--error)",
+                borderRadius: 4, color: "var(--error)", fontSize: 12,
+              }}
+            >
               {error}
             </div>
           )}
@@ -255,13 +270,16 @@ export default function LoadingDock() {
             <button
               type="submit"
               disabled={saving || !form.name.trim()}
+              aria-disabled={saving || !form.name.trim()}
               style={{
-                padding: "10px 20px",
+                height: 44, padding: "0 20px",
                 background: saving ? "var(--bg-elevated)" : "var(--accent-primary)",
                 border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
-                borderRadius: 4, color: "var(--accent-secondary)", cursor: saving ? "wait" : "pointer",
+                borderRadius: 4, color: "var(--accent-secondary)",
+                cursor: saving || !form.name.trim() ? "not-allowed" : "pointer",
                 fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
                 opacity: !form.name.trim() && !saving ? 0.5 : 1,
+                transition: "opacity 0.15s",
               }}
             >
               {saving ? "Saving..." : "Save Engagement"}
@@ -270,7 +288,7 @@ export default function LoadingDock() {
               type="button"
               onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setError(null); }}
               style={{
-                padding: "10px 16px",
+                height: 44, padding: "0 16px",
                 background: "transparent", border: "1px solid var(--border)",
                 borderRadius: 4, color: "var(--text-tertiary)", cursor: "pointer",
                 fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
@@ -399,29 +417,30 @@ function EngagementCard({
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           <Link
             href={`/?engagement=${eng.id}`}
+            aria-label={`Query engagement: ${eng.name}`}
             style={{
               display: "flex", alignItems: "center", gap: 4,
-              padding: "6px 10px",
+              height: 44, padding: "0 14px",
               background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
               borderRadius: 4, color: "var(--accent-secondary)", textDecoration: "none",
               fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
             }}
           >
-            <ArrowRight size={11} />
+            <ArrowRight size={11} aria-hidden="true" />
             Query
           </Link>
           {eng.status !== "archived" && (
             <button
               onClick={() => onArchive(eng.id)}
-              title="Archive"
+              aria-label="Archive engagement"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                width: 32, height: 32, padding: 0,
+                width: 44, height: 44, padding: 0,
                 background: "transparent", border: "1px solid var(--border)",
                 borderRadius: 4, color: "var(--text-tertiary)", cursor: "pointer",
               }}
             >
-              <Archive size={12} />
+              <Archive size={12} aria-hidden="true" />
             </button>
           )}
         </div>

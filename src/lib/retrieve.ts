@@ -1,4 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+// TEMP: Using OpenAI while Anthropic org is being restored.
+// To switch back: replace OpenAI client + messages.create call with Anthropic equivalents.
+import OpenAI from "openai";
 import { VoyageAIClient } from "voyageai";
 import { getServiceClient } from "./supabase";
 import { generateEmbedding } from "./embeddings";
@@ -6,10 +8,10 @@ import type { AtlasMode, KnowledgeLayer, RetrievalResult, QueryResponse } from "
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
-let _anthropic: Anthropic | null = null;
-function getAnthropic() {
-  if (!_anthropic) _anthropic = new Anthropic();
-  return _anthropic;
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
 }
 
 let _voyage: VoyageAIClient | null = null;
@@ -59,49 +61,38 @@ Answer using ONLY the provided knowledge base context.`,
 };
 
 // ─── Pinned Core ──────────────────────────────────────────────────────────────
-// Core doctrine and protocol are always included in every context window.
-// They are the frame through which everything else is interpreted.
-// They do NOT compete for retrieval slots — they are prepended unconditionally.
+// Core doctrine and protocol are always represented in every context window.
+// Rather than dumping all core chunks, we pick the TOP_PINNED_CORE most
+// semantically relevant core chunks for the query — ensuring the operating
+// framework is always present without drowning the context window.
 
-async function fetchPinnedCore(): Promise<RetrievalResult[]> {
+const TOP_PINNED_CORE = 4;
+
+async function fetchPinnedCore(queryEmbedding: number[]): Promise<RetrievalResult[]> {
   const supabase = getServiceClient();
 
-  const { data: docs } = await supabase
-    .from("documents")
-    .select("id, title, layer, source_path, content, metadata, created_at, updated_at")
-    .eq("layer", "core")
-    .order("created_at", { ascending: true });
+  // Use match_chunks filtered to core layer — gets the most relevant core chunks
+  const { data, error } = await supabase.rpc("match_chunks", {
+    query_embedding: JSON.stringify(queryEmbedding),
+    match_count: TOP_PINNED_CORE,
+    filter_layer: "core",
+  });
 
-  if (!docs?.length) return [];
+  if (error || !data?.length) return [];
 
-  const docIds = docs.map((d) => d.id);
-  const { data: chunks } = await supabase
-    .from("document_chunks")
-    .select("id, document_id, chunk_index, content, token_count, metadata, created_at")
-    .in("document_id", docIds)
-    .order("chunk_index", { ascending: true });
-
-  if (!chunks?.length) return [];
-
-  const docMap = new Map(docs.map((d) => [d.id, d]));
-
-  return chunks.map((chunk) => ({
-    chunk: { ...chunk, embedding: [] },
-    document: docMap.get(chunk.document_id)!,
-    similarity: 1.0, // pinned — treated as maximally relevant
-  }));
+  return buildResults(data, supabase);
 }
 
 // ─── Hybrid Retrieval ─────────────────────────────────────────────────────────
 
 export async function retrieveChunks(
   query: string,
-  options: { layer?: KnowledgeLayer; topK?: number } = {}
+  options: { layer?: KnowledgeLayer; topK?: number; precomputedEmbedding?: number[] } = {}
 ): Promise<RetrievalResult[]> {
-  const { layer, topK = 5 } = options;
+  const { layer, topK = 5, precomputedEmbedding } = options;
   const supabase = getServiceClient();
 
-  const queryEmbedding = await generateEmbedding(query);
+  const queryEmbedding = precomputedEmbedding ?? await generateEmbedding(query);
 
   // Try hybrid search first; fall back to semantic-only if FTS column not yet populated
   const { data, error } = await supabase.rpc("hybrid_search", {
@@ -209,15 +200,18 @@ export async function queryKnowledgeBase(
 ): Promise<QueryResponse> {
   const { mode = "DIAGNOSIS", layer, topK = 5 } = options;
 
-  // 1. Retrieve broadly (20 candidates for reranker)
+  // 1. Embed query once — reused for pinned core + hybrid retrieval
+  const queryEmbedding = await generateEmbedding(query);
+
+  // 2. Pinned core + broad candidates in parallel
   const [pinnedCore, candidates] = await Promise.all([
-    fetchPinnedCore(),
-    retrieveChunks(query, { layer, topK: 20 }),
+    fetchPinnedCore(queryEmbedding),
+    retrieveChunks(query, { layer, topK: 20, precomputedEmbedding: queryEmbedding }),
   ]);
 
   // 2. Filter out core chunks from candidates (already pinned, avoid duplication)
-  const pinnedIds = new Set(pinnedCore.map((r) => r.chunk.id));
-  const filteredCandidates = candidates.filter((r) => !pinnedIds.has(r.chunk.id));
+  const pinnedCoreIds = new Set(pinnedCore.map((r) => r.chunk.id));
+  const filteredCandidates = candidates.filter((r) => !pinnedCoreIds.has(r.chunk.id));
 
   // 3. Rerank candidates, take top K
   const reranked = await rerank(query, filteredCandidates, topK);
@@ -238,20 +232,19 @@ export async function queryKnowledgeBase(
     })
     .join("\n\n---\n\n");
 
-  // 6. Synthesize with Claude
-  const message = await getAnthropic().messages.create({
-    model: "claude-sonnet-4-6-20250514",
+  // 6. Synthesize — temp: OpenAI gpt-4o (swap back to Claude when Anthropic key restored)
+  const message = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
     max_tokens: 1500,
-    system: SYSTEM_PROMPTS[mode],
     messages: [
-      {
-        role: "user",
-        content: `Knowledge base context:\n\n${context}\n\n---\n\nQuery: ${query}`,
-      },
+      { role: "system", content: SYSTEM_PROMPTS[mode] },
+      { role: "user", content: `Knowledge base context:\n\n${context}\n\n---\n\nQuery: ${query}` },
     ],
   });
 
-  const answer = message.content[0].type === "text" ? message.content[0].text : "";
+  const answer = message.choices[0].message.content ?? "";
+
+  const pinnedIds = new Set(pinnedCore.map((r) => r.chunk.id));
 
   return {
     query,
@@ -261,7 +254,9 @@ export async function queryKnowledgeBase(
       document_title: r.document.title,
       layer: r.document.layer,
       chunk_index: r.chunk.chunk_index,
+      section_heading: r.chunk.metadata?.section_heading as string | undefined,
       similarity: r.similarity,
+      pinned: pinnedIds.has(r.chunk.id),
     })),
   };
 }

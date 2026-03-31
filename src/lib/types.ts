@@ -67,7 +67,9 @@ export interface QueryResponse {
     document_title: string;
     layer: KnowledgeLayer;
     chunk_index: number;
+    section_heading?: string;
     similarity: number;
+    pinned: boolean;
   }>;
 }
 
