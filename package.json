@@ -9,6 +9,7 @@
     "lint": "eslint",
     "ingest:doctrine": "tsx --env-file=.env.local scripts/ingest-doctrine.ts",
     "ingest:protocol": "tsx --env-file=.env.local scripts/ingest-protocol.ts",
+    "ingest:frameworks": "tsx --env-file=.env.local scripts/ingest-frameworks.ts",
     "query": "tsx --env-file=.env.local scripts/test-query.ts"
   },
   "dependencies": {

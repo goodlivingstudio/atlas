@@ -48,38 +48,23 @@ export default function Home() {
   }
 
   return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "72px 24px 48px" }}>
+    <main style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px 48px" }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: 48 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <div style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "var(--live)",
-            boxShadow: "0 0 6px var(--live)",
-          }} />
-          <span style={{
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "var(--text-tertiary)",
-            fontFamily: "var(--font-mono)",
-          }}>
-            Atlas
-          </span>
-        </div>
+      {/* Page header */}
+      <div style={{ marginBottom: 40 }}>
         <h1 style={{
-          fontSize: 28,
+          fontSize: 22,
           fontWeight: 400,
           color: "var(--text-primary)",
           letterSpacing: "-0.02em",
           lineHeight: 1.2,
-          margin: 0,
+          margin: "0 0 6px",
         }}>
-          Strategic Intelligence OS
+          Operating Room
         </h1>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>
+          Set your mode, ask your question.
+        </p>
       </div>
 
       {/* Knowledge base status */}
