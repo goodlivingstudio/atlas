@@ -16,6 +16,7 @@
   --error:            #ef4444;
   --radius-card:      10px;
   --radius-btn:       6px;
+  --synth-indicator:  #3E3224;
 
   /* Knowledge layer colors */
   --layer-core:       #B8956A;
@@ -38,6 +39,118 @@ body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   letter-spacing: -0.01em;
   line-height: 1.55;
+}
+
+/* ─── Mineral — light ─────────────────────────────────────────────────────── */
+:root.day {
+  --bg-primary:       #F7F4EF;
+  --bg-surface:       #EFECE5;
+  --bg-elevated:      #E6E2DC;
+  --accent-primary:   #FBF0E4;
+  --accent-secondary: #7A5228;
+  --accent-muted:     #8A6030;
+  --text-primary:     #1C1A17;
+  --text-secondary:   #332F2A;
+  --text-tertiary:    #6B6760;
+  --border:           #DDD9D0;
+  --live:             #166534;
+  --synth-indicator:  #F0E4D4;
+  --layer-core:       #7A5228;
+  --layer-frameworks: #1E4A63;
+  --layer-clients:    #7A4528;
+  --layer-market:     #2A5A3E;
+  --layer-live:       #166534;
+}
+
+/* ─── Slate — dark ────────────────────────────────────────────────────────── */
+:root.skin-slate {
+  --bg-primary:       #0C0D10;
+  --bg-surface:       #141620;
+  --bg-elevated:      #1C1E2C;
+  --accent-primary:   #0D1A2E;
+  --accent-secondary: #4A7A9B;
+  --accent-muted:     #6A9ABB;
+  --text-primary:     #EEF0F6;
+  --text-secondary:   #9AA0B8;
+  --text-tertiary:    #808890;
+  --border:           #252840;
+  --live:             #4ade80;
+  --synth-indicator:  #2A3240;
+  --layer-core:       #4A7A9B;
+  --layer-frameworks: #60A5FA;
+  --layer-clients:    #4A7A9B;
+  --layer-market:     #5C8A6E;
+  --layer-live:       #4ade80;
+}
+
+:root.skin-slate.day {
+  --bg-primary:       #F2F4F8;
+  --bg-surface:       #E8ECF4;
+  --bg-elevated:      #DEE4F0;
+  --accent-primary:   #E0EAF4;
+  --accent-secondary: #1E4A63;
+  --accent-muted:     #2B5C7A;
+  --text-primary:     #1A1D24;
+  --text-secondary:   #2A3048;
+  --text-tertiary:    #4A5270;
+  --border:           #CDD4E4;
+  --live:             #166534;
+  --synth-indicator:  #D8E4F0;
+  --layer-core:       #1E4A63;
+  --layer-frameworks: #1E4A63;
+  --layer-clients:    #1E4A63;
+  --layer-market:     #2A5A3E;
+  --layer-live:       #166534;
+}
+
+/* ─── Forest — dark ───────────────────────────────────────────────────────── */
+:root.skin-forest {
+  --bg-primary:       #0F0E0C;
+  --bg-surface:       #191815;
+  --bg-elevated:      #222018;
+  --accent-primary:   #0D1F14;
+  --accent-secondary: #5C8A6E;
+  --accent-muted:     #7AAA8E;
+  --text-primary:     #EDEAE4;
+  --text-secondary:   #A5A09A;
+  --text-tertiary:    #888480;
+  --border:           #2A2720;
+  --live:             #4ade80;
+  --synth-indicator:  #2A382E;
+  --layer-core:       #5C8A6E;
+  --layer-frameworks: #5C8A6E;
+  --layer-clients:    #5C8A6E;
+  --layer-market:     #5C8A6E;
+  --layer-live:       #4ade80;
+}
+
+:root.skin-forest.day {
+  --bg-primary:       #F6F3EE;
+  --bg-surface:       #EDE9E2;
+  --bg-elevated:      #E2DDD5;
+  --accent-primary:   #E4F0E8;
+  --accent-secondary: #2A5A3E;
+  --accent-muted:     #3A6B50;
+  --text-primary:     #1C1A17;
+  --text-secondary:   #2E2C28;
+  --text-tertiary:    #54504A;
+  --border:           #D8D4CC;
+  --live:             #166534;
+  --synth-indicator:  #D8EEE0;
+  --layer-core:       #2A5A3E;
+  --layer-frameworks: #2A5A3E;
+  --layer-clients:    #2A5A3E;
+  --layer-market:     #2A5A3E;
+  --layer-live:       #166534;
+}
+
+/* Day mode: lighter grain */
+:root.day body::after { opacity: 0.02; }
+
+/* ─── Ticker scroll ───────────────────────────────────────────────────────── */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
 /* Film grain overlay */

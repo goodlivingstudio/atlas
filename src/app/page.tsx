@@ -48,7 +48,7 @@ export default function Home() {
   }
 
   return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "88px 24px 64px" }}>
+    <main style={{ maxWidth: 760, margin: "0 auto", padding: "104px 24px 64px" }}>
 
       {/* Page header */}
       <div style={{ marginBottom: 40 }}>

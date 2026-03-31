@@ -230,7 +230,7 @@ export default function LoadingDock() {
 
   return (
     <main
-      style={{ maxWidth: 880, margin: "0 auto", padding: "72px 24px 64px" }}
+      style={{ maxWidth: 880, margin: "0 auto", padding: "104px 24px 64px" }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}

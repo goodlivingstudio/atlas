@@ -1,4 +1,5 @@
 export type KnowledgeLayer = "core" | "frameworks" | "clients" | "market" | "live";
+export type Skin = "mineral" | "slate" | "forest";
 export type AtlasMode = "DIAGNOSIS" | "PRESCRIPTION";
 
 export type ConfidenceTier =
