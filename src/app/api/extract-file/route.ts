@@ -151,13 +151,12 @@ export async function POST(request: NextRequest) {
     let text = "";
 
     // ── PDF ───────────────────────────────────────────────────────────────────
+    // pdf-parse v2 uses a class-based API: new PDFParse({ data }) → .getText()
     if (ext === "pdf" || mimeType === "application/pdf") {
-      // pdf-parse is a CommonJS module — require() is the only reliable import
-      // in Next.js App Router (dynamic import returns a namespace object, not a fn)
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
-      const data = await pdfParse(buffer);
-      text = data.text.trim();
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: new Uint8Array(buffer) });
+      const result = await parser.getText();
+      text = result.text.trim();
     }
 
     // ── Word (modern) ─────────────────────────────────────────────────────────
