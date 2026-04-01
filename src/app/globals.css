@@ -11,19 +11,19 @@
   --text-primary:     #F0EDE8;
   --text-secondary:   #A8A29B;
   --text-tertiary:    #8A8480;
-  --border:           #332E28;
+  --border:           #2C2820;
   --live:             #4ade80;
   --error:            #ef4444;
   --radius-card:      10px;
   --radius-btn:       6px;
   --synth-indicator:  #3E3224;
 
-  /* Knowledge layer colors */
-  --layer-core:       #B8956A;
-  --layer-frameworks: #60A5FA;
-  --layer-clients:    #C8955A;
-  --layer-market:     #5C8A6E;
-  --layer-live:       #4ade80;
+  /* Knowledge layer colors — Option E (Considered Contrast) */
+  --layer-core:       #D4A05A;
+  --layer-frameworks: #5A9EB0;
+  --layer-clients:    #7BAF6A;
+  --layer-market:     #9A85B8;
+  --layer-live:       #C87A6A;
 
   /* ─── Type Scale ──────────────────────────────────────────────────────────
      9 steps. Nothing below 10px. Labels minimum 11px.
@@ -130,11 +130,11 @@ p {
   --border:           #DDD9D0;
   --live:             #166534;
   --synth-indicator:  #F0E4D4;
-  --layer-core:       #7A5228;
-  --layer-frameworks: #1E4A63;
-  --layer-clients:    #7A4528;
-  --layer-market:     #2A5A3E;
-  --layer-live:       #166534;
+  --layer-core:       #8C6A3B;
+  --layer-frameworks: #447784;
+  --layer-clients:    #557949;
+  --layer-market:     #786890;
+  --layer-live:       #9C5F53;
 }
 
 /* ─── Slate — dark ────────────────────────────────────────────────────────── */
@@ -151,11 +151,11 @@ p {
   --border:           #252840;
   --live:             #4ade80;
   --synth-indicator:  #2A3240;
-  --layer-core:       #4A7A9B;
-  --layer-frameworks: #60A5FA;
-  --layer-clients:    #4A7A9B;
-  --layer-market:     #5C8A6E;
-  --layer-live:       #4ade80;
+  --layer-core:       #D4A05A;
+  --layer-frameworks: #5A9EB0;
+  --layer-clients:    #7BAF6A;
+  --layer-market:     #9A85B8;
+  --layer-live:       #C87A6A;
 }
 
 :root.skin-slate.day {
@@ -171,11 +171,11 @@ p {
   --border:           #CDD4E4;
   --live:             #166534;
   --synth-indicator:  #D8E4F0;
-  --layer-core:       #1E4A63;
-  --layer-frameworks: #1E4A63;
-  --layer-clients:    #1E4A63;
-  --layer-market:     #2A5A3E;
-  --layer-live:       #166534;
+  --layer-core:       #8C6A3B;
+  --layer-frameworks: #447784;
+  --layer-clients:    #557949;
+  --layer-market:     #786890;
+  --layer-live:       #9C5F53;
 }
 
 /* ─── Forest — dark ───────────────────────────────────────────────────────── */
@@ -192,11 +192,11 @@ p {
   --border:           #2A2720;
   --live:             #4ade80;
   --synth-indicator:  #2A382E;
-  --layer-core:       #5C8A6E;
-  --layer-frameworks: #5C8A6E;
-  --layer-clients:    #5C8A6E;
-  --layer-market:     #5C8A6E;
-  --layer-live:       #4ade80;
+  --layer-core:       #D4A05A;
+  --layer-frameworks: #5A9EB0;
+  --layer-clients:    #7BAF6A;
+  --layer-market:     #9A85B8;
+  --layer-live:       #C87A6A;
 }
 
 :root.skin-forest.day {
@@ -212,11 +212,11 @@ p {
   --border:           #D8D4CC;
   --live:             #166534;
   --synth-indicator:  #D8EEE0;
-  --layer-core:       #2A5A3E;
-  --layer-frameworks: #2A5A3E;
-  --layer-clients:    #2A5A3E;
-  --layer-market:     #2A5A3E;
-  --layer-live:       #166534;
+  --layer-core:       #8C6A3B;
+  --layer-frameworks: #447784;
+  --layer-clients:    #557949;
+  --layer-market:     #786890;
+  --layer-live:       #9C5F53;
 }
 
 /* Day mode: lighter grain */
