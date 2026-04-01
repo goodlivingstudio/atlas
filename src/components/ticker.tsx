@@ -141,8 +141,8 @@ export function Ticker({
             const content = (
               <>
                 <span style={{
-                  fontSize: 9,
-                  letterSpacing: "0.08em",
+                  fontSize: 10,
+                  
                   textTransform: "uppercase",
                   padding: "2px 7px",
                   borderRadius: 3,
@@ -155,14 +155,14 @@ export function Ticker({
                 </span>
                 <span
                   className="ticker-text"
-                  style={{ fontSize: 12, letterSpacing: "-0.01em" }}
+                  style={{ fontSize: 12 }}
                 >
                   {item.text}
                 </span>
                 {item.source === "dynamic" && (
                   <span style={{
-                    fontSize: 9, color: style.color, opacity: 0.6,
-                    letterSpacing: "0.06em", textTransform: "uppercase",
+                    fontSize: 10, color: style.color, opacity: 0.6,
+                    textTransform: "uppercase",
                     fontFamily: "var(--font-mono)",
                   }}>
                     ↗

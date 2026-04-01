@@ -1,6 +1,6 @@
 export type KnowledgeLayer = "core" | "frameworks" | "clients" | "market" | "live";
 export type Skin = "mineral" | "slate" | "forest";
-export type AtlasMode = "DIAGNOSIS" | "PRESCRIPTION";
+export type AtlasMode = "DIAGNOSIS" | "PRESCRIPTION" | "GENERATE";
 
 export type ConfidenceTier =
   | "established_fact"
@@ -71,6 +71,7 @@ export interface QueryResponse {
     section_heading?: string;
     similarity: number;
     pinned: boolean;
+    source_path?: string;
   }>;
 }
 

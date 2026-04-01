@@ -51,11 +51,14 @@ export default function LoadingDock() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [extractedFilename, setExtractedFilename] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const ACCEPTED = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.markdown";
+  const ACCEPTED = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.markdown,.png,.jpg,.jpeg,.gif,.webp,.svg,.heic,.bmp,.tiff";
 
   useEffect(() => {
     fetch("/api/engagements")
@@ -103,6 +106,7 @@ export default function LoadingDock() {
   // ── File pipeline: extract → analyze ──────────────────────────────────────
   async function processFile(file: File) {
     const label = file.name;
+    setJustSaved(false);
     setIntake({ phase: "extracting", label });
 
     // 1. Extract text
@@ -126,6 +130,10 @@ export default function LoadingDock() {
       setIntake({ phase: "error", message: "No text could be extracted from this file." });
       return;
     }
+
+    // Store extracted text for later ingest
+    setExtractedText(extracted.text);
+    setExtractedFilename(file.name);
 
     // 2. Analyze
     setIntake({ phase: "analyzing", label });
@@ -160,6 +168,9 @@ export default function LoadingDock() {
         setIntake({ phase: "error", message: data.error });
         return;
       }
+      // Store extracted text for later ingest
+      setExtractedText(data.text);
+      setExtractedFilename(data.title || url);
       setIntake({ phase: "analyzing", label: data.title || url });
       const analysisRes = await fetch("/api/analyze-intake", {
         method: "POST",
@@ -207,6 +218,13 @@ export default function LoadingDock() {
           brief: analysis.brief || null,
           notes: analysis.notes || null,
           competitive_set: analysis.competitive_set || [],
+          source_text: extractedText || undefined,
+          source_filename: extractedFilename || undefined,
+          analysis_metadata: {
+            doc_type: analysis.doc_type,
+            signals: analysis.signals,
+            next_steps: analysis.next_steps,
+          },
         }),
       });
       if (!res.ok) {
@@ -218,6 +236,9 @@ export default function LoadingDock() {
       setEngagements((prev) => [created, ...prev]);
       setIntake({ phase: "idle" });
       setForm(EMPTY_FORM);
+      setExtractedText(null);
+      setExtractedFilename(null);
+      setJustSaved(true);
     } catch {
       setSaveError("Something went wrong.");
     } finally {
@@ -258,6 +279,8 @@ export default function LoadingDock() {
           brief: form.brief || null,
           notes: form.notes || null,
           competitive_set,
+          source_text: extractedText || undefined,
+          source_filename: extractedFilename || undefined,
         }),
       });
       if (!res.ok) {
@@ -268,6 +291,9 @@ export default function LoadingDock() {
       setEngagements((prev) => [created, ...prev]);
       setForm(EMPTY_FORM);
       setIntake({ phase: "idle" });
+      setExtractedText(null);
+      setExtractedFilename(null);
+      setJustSaved(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -290,6 +316,7 @@ export default function LoadingDock() {
     setIntake({ phase: "idle" });
     setForm(EMPTY_FORM);
     setSaveError(null);
+    setJustSaved(false);
   }
 
   const active   = engagements.filter((e) => e.status !== "archived");
@@ -298,7 +325,7 @@ export default function LoadingDock() {
 
   return (
     <main
-      style={{ maxWidth: 880, margin: "0 auto", padding: "104px 24px 64px" }}
+      style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px 64px" }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -327,15 +354,15 @@ export default function LoadingDock() {
             background: "var(--live)", boxShadow: "0 0 6px var(--live)",
           }} />
           <span style={{
-            fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase",
+            fontSize: 11, fontWeight: 600, textTransform: "uppercase",
             color: "var(--text-tertiary)", fontFamily: "var(--font-mono)",
           }}>
             Atlas · Loading Dock
           </span>
         </div>
         <h1 style={{
-          fontSize: 32, fontWeight: 500, color: "var(--text-primary)",
-          letterSpacing: "-0.03em", lineHeight: 1.15, margin: "0 0 8px",
+          fontSize: 24, fontWeight: 400, color: "var(--text-primary)",
+          lineHeight: 1.2, margin: "0 0 8px",
         }}>
           Loading Dock
         </h1>
@@ -345,15 +372,132 @@ export default function LoadingDock() {
         </p>
       </div>
 
-      {/* ── Drop zone (idle) ──────────────────────────────────────────────────── */}
+      {/* What's next? — shown after a successful ingest */}
+      {isIdle && justSaved && (
+        <div style={{
+          marginBottom: 32, padding: "20px 24px",
+          background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
+          borderRadius: "var(--radius-card)",
+        }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600,
+            textTransform: "uppercase", fontFamily: "var(--font-mono)",
+            color: "var(--accent-secondary)", marginBottom: 12,
+          }}>
+            What&apos;s next?
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link
+              href="/ask"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                height: 36, padding: "0 14px",
+                background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
+                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                color: "var(--accent-secondary)", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase",
+              }}
+            >
+              Ask Atlas about this →
+            </Link>
+            <Link
+              href="/knowledge"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                height: 36, padding: "0 14px",
+                background: "transparent", border: "1px solid var(--border)",
+                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                color: "var(--text-secondary)", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase",
+              }}
+            >
+              View in Knowledge Base →
+            </Link>
+            {engagements.length === 0 && (
+              <Link
+                href="/engagements"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  height: 36, padding: "0 14px",
+                  background: "transparent", border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-btn)", textDecoration: "none",
+                  color: "var(--text-secondary)", fontSize: 11, fontWeight: 600,
+                  textTransform: "uppercase",
+                }}
+              >
+                Start an engagement →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Welcome mat + Drop zone — side by side when both visible ────────── */}
       {isIdle && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: engagements.length === 0 ? "1fr 1fr" : "1fr",
+          gap: 16,
+          marginBottom: 40,
+          alignItems: "stretch",
+        }}>
+
+        {/* Welcome mat — shown when dock is empty */}
+        {engagements.length === 0 && (
+          <div style={{
+            padding: "24px 28px",
+            background: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: "var(--radius-card)",
+            display: "flex", flexDirection: "column",
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 600,
+              textTransform: "uppercase", fontFamily: "var(--font-mono)",
+              color: "var(--accent-secondary)", marginBottom: 12,
+            }}>
+              Getting started
+            </div>
+            <p style={{
+              fontSize: 14, color: "var(--text-primary)", lineHeight: 1.75, margin: "0 0 20px",
+            }}>
+              Drop a document and Atlas will extract its content, run intake analysis,
+              and help you build an engagement.
+            </p>
+            <div>
+              <div style={{
+                fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase", color: "var(--text-tertiary)",
+                fontFamily: "var(--font-mono)", marginBottom: 10,
+              }}>
+                What to bring
+              </div>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  "RFPs and client briefs",
+                  "Research reports and market studies",
+                  "Strategy decks and positioning documents",
+                  "Competitive analyses and category reviews",
+                  "Articles, essays, and thought leadership",
+                  "Images — whiteboards, charts, diagrams, screenshots",
+                ].map((item) => (
+                  <li key={item} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+                    <span style={{ color: "var(--accent-secondary)", fontFamily: "var(--font-mono)", flexShrink: 0 }}>—</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Drop zone */}
         <div style={{
           padding: "40px 32px",
           border: `2px dashed ${dragOver ? "var(--accent-secondary)" : "var(--border)"}`,
           borderRadius: "var(--radius-card)",
           background: dragOver ? "var(--accent-primary)" : "transparent",
-          marginBottom: 40,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", gap: 14,
           transition: "border-color 0.15s, background 0.15s",
           textAlign: "center",
         }}>
@@ -369,7 +513,7 @@ export default function LoadingDock() {
           </div>
           <div>
             <div style={{
-              fontSize: 16, fontWeight: 500, letterSpacing: "-0.02em", marginBottom: 6,
+              fontSize: 16, fontWeight: 500, marginBottom: 6,
               color: dragOver ? "var(--accent-secondary)" : "var(--text-primary)",
               transition: "color 0.15s",
             }}>
@@ -392,7 +536,7 @@ export default function LoadingDock() {
                   height: 40, padding: "0 18px",
                   background: "var(--bg-surface)", border: "1px solid var(--border)",
                   borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
-                  fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                  fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: "pointer",
                 }}
               >
@@ -407,7 +551,7 @@ export default function LoadingDock() {
                   height: 40, padding: "0 18px",
                   background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
                   borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
-                  fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                  fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: "pointer",
                 }}
               >
@@ -416,6 +560,8 @@ export default function LoadingDock() {
               </button>
             </div>
           )}
+        </div>
+
         </div>
       )}
 
@@ -432,7 +578,7 @@ export default function LoadingDock() {
           borderRadius: "var(--radius-card)",
         }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--error)",
             fontFamily: "var(--font-mono)", marginBottom: 8,
           }}>
@@ -448,7 +594,7 @@ export default function LoadingDock() {
                 height: 36, padding: "0 16px",
                 background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
                 borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", cursor: "pointer",
               }}
             >
@@ -460,7 +606,7 @@ export default function LoadingDock() {
                 height: 36, padding: "0 16px",
                 background: "transparent", border: "1px solid var(--border)",
                 borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", cursor: "pointer",
               }}
             >
@@ -476,6 +622,7 @@ export default function LoadingDock() {
           analysis={intake.analysis}
           saving={saving}
           saveError={saveError}
+          hasSourceText={!!extractedText}
           onAccept={acceptAnalysis}
           onEdit={editAnalysis}
           onDismiss={reset}
@@ -493,7 +640,7 @@ export default function LoadingDock() {
             display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24,
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+              fontSize: 11, fontWeight: 600,
               textTransform: "uppercase", color: "var(--accent-secondary)",
             }}>
               New Engagement
@@ -520,8 +667,8 @@ export default function LoadingDock() {
           ].map(({ key, label, required, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
               <label htmlFor={`field-${key}`} style={{
-                display: "block", fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                display: "block", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase",
                 color: "var(--text-tertiary)", marginBottom: 6,
               }}>
                 {label}{required && <span aria-hidden="true" style={{ color: "var(--accent-secondary)", marginLeft: 3 }}>*</span>}
@@ -538,7 +685,7 @@ export default function LoadingDock() {
                   width: "100%", height: 48, padding: "0 14px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
                   borderRadius: "var(--radius-btn)", color: "var(--text-primary)",
-                  fontSize: 13, outline: "none",
+                  fontSize: 14, outline: "none",
                 }}
               />
             </div>
@@ -550,8 +697,8 @@ export default function LoadingDock() {
           ].map(({ key, label, placeholder }) => (
             <div key={key} style={{ marginBottom: 16 }}>
               <label htmlFor={`field-${key}`} style={{
-                display: "block", fontSize: 10, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                display: "block", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase",
                 color: "var(--text-tertiary)", marginBottom: 6,
               }}>
                 {label}
@@ -565,8 +712,8 @@ export default function LoadingDock() {
                 style={{
                   width: "100%", padding: "12px 14px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-btn)", color: "var(--text-primary)", fontSize: 13,
-                  outline: "none", resize: "vertical", lineHeight: 1.6, fontFamily: "inherit",
+                  borderRadius: "var(--radius-btn)", color: "var(--text-primary)", fontSize: 14,
+                  outline: "none", resize: "vertical", lineHeight: 1.75, fontFamily: "inherit",
                 }}
               />
             </div>
@@ -574,8 +721,8 @@ export default function LoadingDock() {
 
           <div style={{ marginBottom: 28 }}>
             <label htmlFor="field-competitive-set" style={{
-              display: "block", fontSize: 10, fontWeight: 600,
-              letterSpacing: "0.06em", textTransform: "uppercase",
+              display: "block", fontSize: 11, fontWeight: 600,
+              textTransform: "uppercase",
               color: "var(--text-tertiary)", marginBottom: 6,
             }}>
               Competitive Set
@@ -594,7 +741,7 @@ export default function LoadingDock() {
                 fontSize: 13, outline: "none",
               }}
             />
-            <div id="competitive-set-hint" style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 5 }}>
+            <div id="competitive-set-hint" style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginTop: 5 }}>
               Comma-separated.
             </div>
           </div>
@@ -620,12 +767,15 @@ export default function LoadingDock() {
                 border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
                 borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
                 cursor: saving || !form.name.trim() ? "not-allowed" : "pointer",
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+                fontSize: 11, fontWeight: 600, textTransform: "uppercase",
                 opacity: !form.name.trim() && !saving ? 0.5 : 1,
                 transition: "opacity 0.15s",
               }}
             >
-              {saving ? "Saving…" : "Save Engagement"}
+              {saving
+                ? (extractedText ? "Ingesting document…" : "Saving…")
+                : "Save Engagement"
+              }
             </button>
             <button
               type="button"
@@ -635,7 +785,7 @@ export default function LoadingDock() {
                 background: "transparent", border: "1px solid var(--border)",
                 borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
                 cursor: "pointer", fontSize: 11, fontWeight: 600,
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                textTransform: "uppercase",
               }}
             >
               Cancel
@@ -648,7 +798,7 @@ export default function LoadingDock() {
       {active.length > 0 && (
         <div style={{ marginBottom: 48 }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 12,
           }}>
             Engagements — {active.length}
@@ -665,7 +815,7 @@ export default function LoadingDock() {
       {archived.length > 0 && (
         <div>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 12,
           }}>
             Archived — {archived.length}
@@ -687,6 +837,7 @@ function AnalysisReview({
   analysis,
   saving,
   saveError,
+  hasSourceText,
   onAccept,
   onEdit,
   onDismiss,
@@ -694,6 +845,7 @@ function AnalysisReview({
   analysis: IntakeAnalysis;
   saving: boolean;
   saveError: string | null;
+  hasSourceText: boolean;
   onAccept: (a: IntakeAnalysis) => void;
   onEdit: (a: IntakeAnalysis) => void;
   onDismiss: () => void;
@@ -713,15 +865,15 @@ function AnalysisReview({
       }}>
         <div>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.1em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--accent-secondary)",
             fontFamily: "var(--font-mono)", marginBottom: 4,
           }}>
             Atlas · {analysis.doc_type}
           </div>
           <div style={{
-            fontSize: 20, fontWeight: 600, color: "var(--text-primary)",
-            letterSpacing: "-0.03em", lineHeight: 1.2,
+            fontSize: 20, fontWeight: 500, color: "var(--text-primary)",
+            lineHeight: 1.2,
           }}>
             {analysis.name}
           </div>
@@ -749,13 +901,13 @@ function AnalysisReview({
       {analysis.brief && (
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--text-tertiary)",
             marginBottom: 8,
           }}>
             Brief
           </div>
-          <p style={{ fontSize: 14, color: "var(--text-primary)", lineHeight: 1.7, margin: 0 }}>
+          <p style={{ fontSize: 14, color: "var(--text-primary)", lineHeight: 1.75, margin: 0 }}>
             {analysis.brief}
           </p>
         </div>
@@ -773,13 +925,13 @@ function AnalysisReview({
               borderRight: i < 2 ? "1px solid var(--border)" : "none",
             }}>
               <div style={{
-                fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+                fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", color: "var(--accent-muted)",
                 fontFamily: "var(--font-mono)", marginBottom: 6,
               }}>
                 {sig.label}
               </div>
-              <p style={{ fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.55, margin: 0 }}>
                 {sig.body}
               </p>
             </div>
@@ -791,7 +943,7 @@ function AnalysisReview({
       {analysis.notes && (
         <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 8,
           }}>
             Tensions & Observations
@@ -806,7 +958,7 @@ function AnalysisReview({
       {analysis.next_steps?.length > 0 && (
         <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 10,
           }}>
             Next Steps
@@ -815,7 +967,7 @@ function AnalysisReview({
             {analysis.next_steps.map((step, i) => (
               <li key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                 <span style={{
-                  fontSize: 10, fontFamily: "var(--font-mono)",
+                  fontSize: 11, fontFamily: "var(--font-mono)",
                   color: "var(--accent-secondary)", flexShrink: 0,
                   marginTop: 2, minWidth: 16,
                 }}>
@@ -835,7 +987,7 @@ function AnalysisReview({
         <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
+              fontSize: 11, fontWeight: 600,
               textTransform: "uppercase", color: "var(--text-tertiary)",
               marginRight: 4,
             }}>
@@ -876,14 +1028,17 @@ function AnalysisReview({
               border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
               borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
               cursor: saving ? "not-allowed" : "pointer",
-              fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+              fontSize: 11, fontWeight: 600, textTransform: "uppercase",
             }}
           >
             {saving
               ? <Loader2 size={12} style={{ animation: "pulse-text 1.8s ease-in-out infinite" }} aria-hidden="true" />
               : <CheckCheck size={12} aria-hidden="true" />
             }
-            {saving ? "Saving…" : "Save Engagement"}
+            {saving
+              ? (hasSourceText ? "Ingesting document…" : "Saving…")
+              : "Save Engagement"
+            }
           </button>
           <button
             onClick={() => onEdit(analysis)}
@@ -893,7 +1048,7 @@ function AnalysisReview({
               background: "transparent", border: "1px solid var(--border)",
               borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
               cursor: "pointer", fontSize: 11, fontWeight: 600,
-              letterSpacing: "0.06em", textTransform: "uppercase",
+              textTransform: "uppercase",
             }}
           >
             <Pencil size={11} aria-hidden="true" />
@@ -906,7 +1061,7 @@ function AnalysisReview({
               background: "transparent", border: "none",
               borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
               cursor: "pointer", fontSize: 11, fontWeight: 600,
-              letterSpacing: "0.06em", textTransform: "uppercase",
+              textTransform: "uppercase",
             }}
           >
             Discard
@@ -953,7 +1108,7 @@ function EngagementCard({
       }}>
         <div aria-hidden="true" style={{
           position: "absolute", right: 16, bottom: -8,
-          fontSize: 72, fontWeight: 700, letterSpacing: "-0.05em",
+          fontSize: 72, fontWeight: 700,
           color: "var(--bg-primary)", lineHeight: 1,
           userSelect: "none", pointerEvents: "none",
         }}>
@@ -966,7 +1121,7 @@ function EngagementCard({
             boxShadow: eng.status === "active" ? "0 0 5px var(--live)" : undefined,
           }} />
           <span style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: statusMeta.color,
             fontFamily: "var(--font-mono)",
           }}>
@@ -974,8 +1129,8 @@ function EngagementCard({
           </span>
         </div>
         <div style={{
-          fontSize: 20, fontWeight: 600, color: "var(--text-primary)",
-          letterSpacing: "-0.03em", lineHeight: 1.1,
+          fontSize: 20, fontWeight: 500, color: "var(--text-primary)",
+          lineHeight: 1.1,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {displayLabel}
@@ -985,13 +1140,13 @@ function EngagementCard({
       {/* Body */}
       <div style={{ padding: "16px 20px 12px", flex: 1 }}>
         {eng.company && (
-          <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 6, fontWeight: 500 }}>
+          <div style={{ fontSize: 13, color: "var(--text-tertiary)", marginBottom: 6, fontWeight: 500 }}>
             {eng.name}
           </div>
         )}
         {eng.brief && (
           <p style={{
-            fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.6,
+            fontSize: 13, color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.55,
             display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
           }}>
             {eng.brief}
@@ -1018,20 +1173,20 @@ function EngagementCard({
         display: "flex", alignItems: "center", gap: 6,
       }}>
         <Link
-          href={`/?engagement=${eng.id}`}
-          aria-label={`Query engagement: ${eng.name}`}
+          href={`/engagements/${eng.id}`}
+          aria-label={`View engagement: ${eng.name}`}
           style={{
             display: "flex", alignItems: "center", gap: 5,
             height: 36, padding: "0 14px",
             background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
             borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
             textDecoration: "none", fontSize: 11, fontWeight: 600,
-            letterSpacing: "0.06em", textTransform: "uppercase",
+            textTransform: "uppercase",
             flex: 1, justifyContent: "center",
           }}
         >
           <ArrowRight size={11} aria-hidden="true" />
-          Query
+          View
         </Link>
         {!isArchived && (
           <button

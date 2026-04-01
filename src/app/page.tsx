@@ -1,318 +1,508 @@
 "use client";
 
-import { useState } from "react";
-import { ModeSelector } from "@/components/mode-selector";
-import { KnowledgeStatus } from "@/components/knowledge-status";
-import { CerebroBand, useCerebro, type Signal } from "@/components/cerebro";
-import { LAYER_META, type AtlasMode, type KnowledgeLayer, type QueryResponse } from "@/lib/types";
-import { Search, Loader2, ChevronRight, Layers, Pin, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Send } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface StatusData {
+  total_documents: number;
+  total_chunks: number;
+  by_layer: Record<string, { documents: number; chunks: number }>;
+}
+
+interface Engagement {
+  id: string;
+  name: string;
+  company: string | null;
+  status: "intake" | "diagnosing" | "active" | "archived";
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
+interface SignalItem {
+  tag: string;
+  text: string;
+  href: string;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATUS_COLOR: Record<string, string> = {
+  active:     "var(--live)",
+  diagnosing: "var(--layer-frameworks)",
+  intake:     "var(--text-tertiary)",
+  archived:   "var(--border)",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function escalate(query: string): string {
+  return `/ask?q=${encodeURIComponent(query)}`;
+}
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning.";
+  if (h < 17) return "Good afternoon.";
+  return "Good evening.";
+}
+
+function buildSituationSentence(
+  status: StatusData | null,
+  engagements: Engagement[]
+): string {
+  const docCount = status?.total_documents ?? 0;
+  const activeEngagements = engagements.filter((e) => e.status === "active");
+  const intakeEngagements = engagements.filter(
+    (e) => e.status === "intake" || e.status === "diagnosing"
+  );
+
+  if (engagements.length === 0 && docCount === 0) {
+    return "Nothing active yet. Start by ingesting your first document.";
+  }
+
+  if (activeEngagements.length > 0 && intakeEngagements.length > 0) {
+    return `You have ${activeEngagements.length} active engagement${activeEngagements.length !== 1 ? "s" : ""} and ${intakeEngagements.length} document${intakeEngagements.length !== 1 ? "s" : ""} waiting for review.`;
+  }
+
+  if (activeEngagements.length > 0) {
+    const overdueLabel =
+      activeEngagements.length === 1
+        ? "One engagement is overdue for a brief."
+        : `${activeEngagements.length} active engagements in progress.`;
+    if (docCount > 0) {
+      return `Knowledge base is healthy. ${overdueLabel}`;
+    }
+    return overdueLabel;
+  }
+
+  if (intakeEngagements.length > 0) {
+    return `${intakeEngagements.length} engagement${intakeEngagements.length !== 1 ? "s" : ""} in intake — move them forward to begin analysis.`;
+  }
+
+  if (docCount === 0) {
+    return "Nothing active yet. Start by ingesting your first document.";
+  }
+
+  return `${docCount} document${docCount !== 1 ? "s" : ""} in the knowledge base. No active engagements.`;
+}
+
+function buildSignalItems(
+  status: StatusData | null,
+  engagements: Engagement[]
+): SignalItem[] {
+  const items: SignalItem[] = [];
+  const docCount = status?.total_documents ?? 0;
+  const byLayer = status?.by_layer ?? {};
+
+  // Check for sparse market layer
+  const marketEmpty = !byLayer["market"] || byLayer["market"].documents === 0;
+  if (marketEmpty && docCount > 0) {
+    items.push({
+      tag: "KNOWLEDGE",
+      text: "Market layer is empty — add research to improve retrieval",
+      href: "/loading-dock",
+    });
+  }
+
+  // Pending intake engagements
+  const intakePending = engagements.filter(
+    (e) => e.status === "intake" || e.status === "diagnosing"
+  );
+  if (intakePending.length > 0) {
+    items.push({
+      tag: "ACTION",
+      text: `${intakePending.length} engagement${intakePending.length !== 1 ? "s" : ""} in intake — move them forward`,
+      href: "/engagements",
+    });
+  }
+
+  // Atlas query suggestion based on state
+  if (docCount > 0) {
+    items.push({
+      tag: "ATLAS",
+      text: "Ask Atlas about your active engagements",
+      href: "/ask",
+    });
+  } else {
+    items.push({
+      tag: "ATLAS",
+      text: "Ingest your first document to activate retrieval",
+      href: "/loading-dock",
+    });
+  }
+
+  // If KB has sparse total coverage
+  if (docCount > 0 && docCount < 5) {
+    items.push({
+      tag: "KNOWLEDGE",
+      text: `${docCount} doc${docCount !== 1 ? "s" : ""} ingested — add more to improve responses`,
+      href: "/loading-dock",
+    });
+  }
+
+  return items.slice(0, 4);
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11,
+      fontWeight: 600,
+      
+      textTransform: "uppercase" as const,
+      fontFamily: "var(--font-mono)",
+      color: "var(--text-tertiary)",
+      marginBottom: 12,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [mode, setMode] = useState<AtlasMode>("DIAGNOSIS");
-  const [query, setQuery] = useState("");
-  const cerebro = useCerebro();
+  const router = useRouter();
 
-  function handleDeliberate(signal: Signal) {
-    setQuery(signal.body);
-    setMode("DIAGNOSIS");
-    // Scroll to query input
-    setTimeout(() => {
-      document.getElementById("query-input")?.focus();
-    }, 100);
-  }
-  const [filterLayer, setFilterLayer] = useState<KnowledgeLayer | "">("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<QueryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus]       = useState<StatusData | null>(null);
+  const [engagements, setEngagements] = useState<Engagement[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [query, setQuery]         = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  async function handleQuery(e: React.FormEvent) {
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/status").then((r) => r.ok ? r.json() : null).catch(() => null),
+      fetch("/api/engagements").then((r) => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([s, e]) => {
+      setStatus(s);
+      setEngagements(Array.isArray(e) ? e : []);
+      setLoading(false);
+    });
+  }, []);
+
+  function handleAsk(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
+    router.push(`/ask?q=${encodeURIComponent(query.trim())}`);
+  }
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    try {
-      const res = await fetch("/api/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: query.trim(),
-          mode,
-          layer: filterLayer || undefined,
-          top_k: 5,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Query failed");
+  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (query.trim()) {
+        router.push(`/ask?q=${encodeURIComponent(query.trim())}`);
       }
-
-      setResult(await res.json());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
     }
   }
 
-  return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "104px 24px 64px" }}>
+  const activeEngagements = engagements.filter((e) => e.status === "active");
+  const displayEngagements = engagements
+    .filter((e) => e.status !== "archived")
+    .slice(0, 3);
 
-      {/* Page header */}
+  const signalItems = buildSignalItems(status, engagements);
+  const situationSentence = loading
+    ? "Loading…"
+    : buildSituationSentence(status, engagements);
+
+  return (
+    <main style={{
+      maxWidth: 680,
+      margin: "0 auto",
+      padding: "40px 24px 0",
+      display: "flex",
+      flexDirection: "column",
+      height: "100%",
+    }}>
+
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+
+      {/* ── Zone 1: SITUATION ─────────────────────────────────────────────── */}
       <div style={{ marginBottom: 40 }}>
         <h1 style={{
-          fontSize: 22, fontWeight: 400, color: "var(--text-primary)",
-          letterSpacing: "-0.02em", lineHeight: 1.2, margin: "0 0 6px",
+          fontSize: 32,
+          fontWeight: 400,
+          
+          lineHeight: 1.15,
+          color: "var(--text-primary)",
+          margin: "0 0 12px",
         }}>
-          Operating Room
+          {getGreeting()}
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>
-          Set your mode, ask your question.
-        </p>
       </div>
 
-      {/* Cerebro — intelligence band */}
-      <div style={{ margin: "0 -24px 40px", width: "calc(100% + 48px)" }}>
-        <CerebroBand
-          signals={cerebro.signals}
-          loading={cerebro.loading}
-          error={cerebro.error}
-          onDeliberate={handleDeliberate}
-        />
-      </div>
+      {/* ── Zone 2: ACTIVE WORK ───────────────────────────────────────────── */}
+      <div style={{ marginBottom: 40 }}>
+        <SectionLabel>Active</SectionLabel>
 
-      {/* Knowledge base status */}
-      <KnowledgeStatus />
-
-      {/* Mode selector */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: 10,
-        }}>
-          Mode
-        </div>
-        <ModeSelector mode={mode} onChange={(m) => { setMode(m); setResult(null); }} />
-      </div>
-
-      {/* Query form */}
-      <form onSubmit={handleQuery} style={{ marginBottom: 40 }}>
-        {/* Layer filter */}
-        <div style={{ marginBottom: 8 }}>
-          <label
-            htmlFor="layer-filter"
-            style={{
-              display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-              textTransform: "uppercase", color: "var(--text-tertiary)",
-            }}
-          >
-            <Layers size={10} />
-            Layer filter
-          </label>
-          <select
-            id="layer-filter"
-            value={filterLayer}
-            onChange={(e) => setFilterLayer(e.target.value as KnowledgeLayer | "")}
-            style={{
-              width: "100%", height: 52, padding: "0 14px",
-              background: "var(--bg-surface)", border: "1px solid var(--border)",
-              borderRadius: "var(--radius-btn)", color: filterLayer ? "var(--text-primary)" : "var(--text-tertiary)",
-              fontSize: 13, cursor: "pointer",
-            }}
-          >
-            <option value="">All layers</option>
-            {(Object.entries(LAYER_META) as [KnowledgeLayer, typeof LAYER_META.core][]).map(
-              ([key, meta]) => <option key={key} value={key}>{meta.label}</option>
-            )}
-          </select>
-        </div>
-
-        {/* Query input + submit */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <label htmlFor="query-input" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
-            Query
-          </label>
+        {loading ? (
           <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 10,
-            padding: "0 16px", height: 52,
-            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-btn)",
+            fontSize: 13,
+            color: "var(--text-tertiary)",
+            
           }}>
-            <Search size={13} aria-hidden="true" style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
-            <input
-              id="query-input"
-              type="text"
+            Loading…
+          </div>
+        ) : displayEngagements.length === 0 ? (
+          <div style={{
+            fontSize: 13,
+            color: "var(--text-tertiary)",
+            
+          }}>
+            No active engagements.{" "}
+            <Link
+              href="/loading-dock"
+              style={{
+                color: "var(--accent-secondary)",
+                textDecoration: "none",
+              }}
+            >
+              Start one →
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {displayEngagements.map((eng) => (
+              <div
+                key={eng.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-card)",
+                  borderLeft: `2px solid ${STATUS_COLOR[eng.status] ?? "var(--border)"}`,
+                  gap: 0,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elevated)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface)"; }}
+              >
+                {/* Main link — name + company + status */}
+                <Link
+                  href={`/engagements/${eng.id}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "14px 16px",
+                    gap: 12,
+                    textDecoration: "none",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                      
+                    }}>
+                      {eng.name}
+                    </span>
+                    {eng.company && (
+                      <span style={{
+                        fontSize: 12,
+                        color: "var(--text-tertiary)",
+                        marginLeft: 6,
+                      }}>
+                        · {eng.company}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    textTransform: "uppercase" as const,
+                    
+                    color: STATUS_COLOR[eng.status] ?? "var(--text-tertiary)",
+                    flexShrink: 0,
+                  }}>
+                    {eng.status}
+                  </span>
+                </Link>
+
+                {/* Ask Atlas → escalation */}
+                <Link
+                  href={escalate(`Give me a full strategic brief on ${eng.name}${eng.company ? ` (${eng.company})` : ''}. What are the key dynamics, risks, and opportunities right now?`)}
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    
+                    color: "var(--accent-secondary)",
+                    textDecoration: "none",
+                    flexShrink: 0,
+                    padding: "14px 16px 14px 0",
+                  }}
+                >
+                  Ask Atlas →
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Zone 3: SIGNAL ────────────────────────────────────────────────── */}
+      {!loading && signalItems.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          <SectionLabel>Signal</SectionLabel>
+
+          <div style={{
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-card)",
+            overflow: "hidden",
+          }}>
+            {signalItems.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  height: 44,
+                  padding: "0 14px",
+                  gap: 0,
+                  borderBottom: i < signalItems.length - 1 ? "1px solid var(--border)" : "none",
+                  transition: "background 0.12s",
+                  background: "transparent",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {/* Tag */}
+                <span style={{
+                  width: 72,
+                  flexShrink: 0,
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono)",
+                  textTransform: "uppercase" as const,
+                  
+                  color: "var(--text-tertiary)",
+                  fontWeight: 600,
+                }}>
+                  {item.tag}
+                </span>
+
+                {/* Text — links to item href */}
+                <Link
+                  href={item.href}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: "var(--text-primary)",
+                    
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap" as const,
+                    textDecoration: "none",
+                  }}
+                >
+                  {item.text}
+                </Link>
+
+                {/* Ask Atlas → escalation */}
+                <Link
+                  href={escalate(`${item.text} — what are the strategic implications and what should I do next?`)}
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    
+                    color: "var(--accent-secondary)",
+                    textDecoration: "none",
+                    flexShrink: 0,
+                    marginLeft: 12,
+                  }}
+                >
+                  Ask Atlas →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      </div>
+      {/* end scrollable content */}
+
+      {/* ── Zone 4: ASK ATLAS ─────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, paddingTop: 16, paddingBottom: 32 }}>
+        <form onSubmit={handleAsk}>
+          <div style={{
+            border: `1px solid ${inputFocused ? "var(--accent-secondary)" : "var(--border)"}`,
+            borderRadius: 14,
+            background: "var(--bg-surface)",
+            overflow: "hidden",
+            transition: "border-color 0.15s",
+          }}>
+            <textarea
+              ref={textareaRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={mode === "DIAGNOSIS"
-                ? "What do you need to understand?"
-                : "What position are you building?"
-              }
+              onKeyDown={handleTextareaKeyDown}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              placeholder="What do you need to think through?"
+              rows={1}
               style={{
-                flex: 1, height: "100%", background: "transparent", border: "none",
-                outline: "none", color: "var(--text-primary)", fontSize: 14,
-                letterSpacing: "-0.01em",
+                display: "block",
+                width: "100%",
+                padding: "14px 16px 0",
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                color: "var(--text-primary)",
+                fontSize: 14,
+                
+                fontFamily: "inherit",
+                lineHeight: 1.55,
+                resize: "none" as const,
+                minHeight: 48,
+                maxHeight: 160,
+                boxSizing: "border-box" as const,
               }}
             />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            aria-label={loading ? "Running query" : "Run query"}
-            style={{
-              height: 52, padding: "0 24px",
-              background: loading ? "var(--bg-elevated)" : "var(--accent-primary)",
-              border: `1px solid ${loading ? "var(--border)" : "var(--accent-secondary)"}`,
-              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
-              fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
-              cursor: loading || !query.trim() ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: 6,
-              opacity: !query.trim() && !loading ? 0.5 : 1,
-              transition: "opacity 0.15s, border-color 0.15s, background 0.15s",
-            }}
-          >
-            {loading
-              ? <Loader2 size={13} aria-hidden="true" style={{ animation: "pulse-text 1.8s ease-in-out infinite" }} />
-              : <ChevronRight size={13} aria-hidden="true" />
-            }
-            {loading ? "Running" : "Run"}
-          </button>
-        </div>
-      </form>
-
-      {/* Error */}
-      {error && (
-        <div
-          role="alert"
-          style={{
-            padding: "14px 16px", marginBottom: 24,
-            background: "var(--bg-surface)", border: "1px solid var(--error)",
-            borderRadius: 4, color: "var(--error)", fontSize: 13,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Result */}
-      {result && (
-        <div>
-          {/* Mode + query label */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-            <span style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-              textTransform: "uppercase", color: "var(--accent-secondary)", fontFamily: "var(--font-mono)",
-            }}>
-              {mode}
-            </span>
-            <span style={{ color: "var(--border)", fontSize: 12 }}>—</span>
-            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontStyle: "italic" }}>
-              {result.query}
-            </span>
-          </div>
-
-          {/* Answer */}
-          <div style={{
-            padding: "24px 28px", marginBottom: 24,
-            background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-card)",
-          }}>
             <div style={{
-              fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: "var(--accent-secondary)",
-              marginBottom: 14, display: "flex", alignItems: "center", gap: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 4,
+              padding: "8px 10px",
             }}>
-              <Sparkles size={11} aria-hidden="true" />
-              Atlas
-            </div>
-            <div style={{
-              fontSize: 14, color: "var(--text-primary)",
-              lineHeight: 1.75, whiteSpace: "pre-wrap",
-            }}>
-              {result.answer}
+              <button
+                type="submit"
+                disabled={!query.trim()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 32,
+                  height: 32,
+                  background: query.trim() ? "var(--accent-primary)" : "var(--bg-elevated)",
+                  border: `1px solid ${query.trim() ? "var(--accent-secondary)" : "var(--border)"}`,
+                  borderRadius: 8,
+                  color: "var(--accent-secondary)",
+                  cursor: query.trim() ? "pointer" : "not-allowed",
+                  opacity: query.trim() ? 1 : 0.35,
+                  transition: "opacity 0.15s, background 0.15s, border-color 0.15s",
+                }}
+              >
+                <Send size={13} />
+              </button>
             </div>
           </div>
+        </form>
+      </div>
 
-          {/* Sources — grouped */}
-          {(() => {
-            const pinned = result.sources.filter((s) => s.pinned);
-            const retrieved = result.sources.filter((s) => !s.pinned);
-
-            const renderSource = (source: typeof result.sources[0], localIndex: number, globalIndex: number) => (
-              <div key={localIndex} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 14px",
-                background: "var(--bg-surface)",
-                border: `1px solid ${source.pinned ? "var(--bg-elevated)" : "var(--border)"}`,
-                borderRadius: 4, fontSize: 12,
-                opacity: source.pinned ? 0.65 : 1,
-              }}>
-                <span style={{
-                  fontSize: 10, color: "var(--text-tertiary)",
-                  fontFamily: "var(--font-mono)", flexShrink: 0, width: 16,
-                }}>
-                  {globalIndex + 1}
-                </span>
-                <div style={{
-                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                  background: LAYER_META[source.layer]?.color || "var(--text-tertiary)",
-                }} />
-                <span style={{ color: "var(--text-primary)", fontWeight: 500, flex: 1, minWidth: 0 }}>
-                  {source.document_title}
-                  {source.section_heading && (
-                    <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>
-                      {" · "}{source.section_heading.replace(/^#+\s*/, "")}
-                    </span>
-                  )}
-                </span>
-                <span style={{
-                  fontSize: 10, fontFamily: "var(--font-mono)", flexShrink: 0,
-                  color: source.pinned ? "var(--text-tertiary)" : "var(--accent-secondary)",
-                }}>
-                  {source.pinned ? "pinned" : `${(source.similarity * 100).toFixed(1)}%`}
-                </span>
-              </div>
-            );
-
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {pinned.length > 0 && (
-                  <div>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
-                      fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-                      textTransform: "uppercase", color: "var(--text-tertiary)",
-                    }}>
-                      <Pin size={9} aria-hidden="true" />
-                      Core — always in context
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      {pinned.map((s, i) => renderSource(s, i, i))}
-                    </div>
-                  </div>
-                )}
-                {retrieved.length > 0 && (
-                  <div>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
-                      fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-                      textTransform: "uppercase", color: "var(--text-tertiary)",
-                    }}>
-                      <Search size={9} aria-hidden="true" />
-                      Retrieved
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      {retrieved.map((s, i) => renderSource(s, i, pinned.length + i))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      )}
     </main>
   );
 }

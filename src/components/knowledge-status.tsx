@@ -44,7 +44,7 @@ export function KnowledgeStatus() {
         <span style={{
           fontSize: 10,
           fontWeight: 600,
-          letterSpacing: "0.08em",
+          
           textTransform: "uppercase",
           color: "var(--text-tertiary)",
         }}>
@@ -97,7 +97,7 @@ export function KnowledgeStatus() {
                   fontWeight: 500,
                   color: isEmpty ? "var(--text-tertiary)" : "var(--text-primary)",
                   textTransform: "uppercase",
-                  letterSpacing: "0.04em",
+                  
                 }}>
                   {meta.label}
                 </span>

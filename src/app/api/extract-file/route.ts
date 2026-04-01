@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 // Allow larger bodies for PDF/Office docs
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -220,6 +220,53 @@ export async function POST(request: NextRequest) {
       mimeType.startsWith("text/")
     ) {
       text = buffer.toString("utf-8").trim();
+    }
+
+    // ── Images ────────────────────────────────────────────────────────────────────
+    else if (
+      ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic", "bmp", "tiff"].includes(ext) ||
+      mimeType.startsWith("image/")
+    ) {
+      const base64    = buffer.toString("base64");
+      const mediaType = mimeType || `image/${ext === "jpg" ? "jpeg" : ext}`;
+
+      const visionRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          max_tokens: 2000,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mediaType};base64,${base64}`,
+                    detail: "high",
+                  },
+                },
+                {
+                  type: "text",
+                  text: "You are processing an image for a strategic intelligence system. Describe and transcribe all visible content — text, data, labels, diagrams, charts, whiteboards, annotations. Be thorough and structured. If the image contains a whiteboard or diagram, reconstruct its structure in text.",
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!visionRes.ok) {
+        const errBody = await visionRes.json().catch(() => ({}));
+        throw new Error((errBody as { error?: { message?: string } })?.error?.message || "Vision API failed");
+      }
+
+      const visionData = await visionRes.json() as { choices: Array<{ message: { content: string } }> };
+      text = visionData.choices?.[0]?.message?.content?.trim() ?? "";
     }
 
     // ── Unsupported ───────────────────────────────────────────────────────────

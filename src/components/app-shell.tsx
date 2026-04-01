@@ -8,7 +8,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { skin, isDay, toggleMode, setSkin } = useTheme();
 
   return (
-    <>
+    <div style={{
+      display: "flex", flexDirection: "column",
+      height: "100vh", overflow: "hidden",
+    }}>
       <Nav />
       <Ticker
         isDay={isDay}
@@ -16,7 +19,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onToggle={toggleMode}
         onSkinChange={setSkin}
       />
-      {children}
-    </>
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {children}
+      </div>
+    </div>
   );
 }

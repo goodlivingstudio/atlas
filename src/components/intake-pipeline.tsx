@@ -86,7 +86,7 @@ function StageRow({
 
       {/* Label */}
       <div style={{
-        fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+        fontSize: 9, fontWeight: 700,
         fontFamily: "var(--font-mono)",
         color: isDone ? "var(--live)" : isActive ? "var(--accent-secondary)" : "var(--text-tertiary)",
         width: 100, flexShrink: 0,
@@ -97,7 +97,7 @@ function StageRow({
 
       {/* Detail / glitch */}
       <div style={{
-        fontSize: 11, letterSpacing: "-0.01em",
+        fontSize: 11,
         color: isDone ? "var(--text-tertiary)" : isActive ? "var(--text-secondary)" : "transparent",
         flex: 1, overflow: "hidden",
         transition: "color 0.2s",
@@ -107,7 +107,7 @@ function StageRow({
             {stage.detail}
             <span style={{
               marginLeft: 8, fontSize: 9, opacity: 0.5,
-              fontFamily: "var(--font-mono)", letterSpacing: "0.04em",
+              fontFamily: "var(--font-mono)",
               color: "var(--accent-secondary)",
             }}>
               {glitch}
@@ -121,7 +121,7 @@ function StageRow({
       {/* Done badge */}
       {isDone && (
         <div style={{
-          fontSize: 9, letterSpacing: "0.1em", fontWeight: 700,
+          fontSize: 9, fontWeight: 700,
           fontFamily: "var(--font-mono)", color: "var(--live)",
           opacity: 0.7, flexShrink: 0,
         }}>
@@ -256,7 +256,7 @@ export function IntakePipeline({
       }}>
         <div>
           <div style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+            fontSize: 9, fontWeight: 700,
             textTransform: "uppercase", fontFamily: "var(--font-mono)",
             color: "var(--accent-secondary)", marginBottom: 4,
           }}>
@@ -264,7 +264,7 @@ export function IntakePipeline({
           </div>
           <div style={{
             fontSize: 14, fontWeight: 500, color: "var(--text-primary)",
-            letterSpacing: "-0.02em", lineHeight: 1.3,
+            lineHeight: 1.3,
             maxWidth: 480, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {label}
@@ -272,7 +272,7 @@ export function IntakePipeline({
         </div>
         <div style={{
           fontFamily: "var(--font-mono)", fontSize: 11,
-          color: "var(--text-tertiary)", letterSpacing: "0.04em", flexShrink: 0,
+          color: "var(--text-tertiary)", flexShrink: 0,
         }}>
           {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
         </div>
@@ -293,7 +293,7 @@ export function IntakePipeline({
 
         {/* Extract section */}
         <div style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+          fontSize: 9, fontWeight: 700,
           textTransform: "uppercase", fontFamily: "var(--font-mono)",
           color: "var(--text-tertiary)", marginBottom: 8, opacity: 0.6,
         }}>
@@ -316,7 +316,7 @@ export function IntakePipeline({
 
         {/* Analyze section */}
         <div style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+          fontSize: 9, fontWeight: 700,
           textTransform: "uppercase", fontFamily: "var(--font-mono)",
           color: phase === "analyzing" ? "var(--accent-secondary)" : "var(--text-tertiary)",
           marginBottom: 8, opacity: phase === "analyzing" ? 1 : 0.4,
@@ -349,7 +349,7 @@ export function IntakePipeline({
         }} />
         <div style={{
           fontSize: 11, fontFamily: "var(--font-mono)",
-          color: "var(--text-tertiary)", letterSpacing: "0.02em",
+          color: "var(--text-tertiary)",
         }}>
           {phase === "extracting"
             ? `Extracting content · ${progress}% complete`

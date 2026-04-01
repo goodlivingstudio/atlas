@@ -58,6 +58,24 @@ The operator has a direction and is building the argument. Sharpen the position,
 Prescription that outruns its evidence is a failure. Advocate with rigor — find the strongest version of the operator's position, then name what could break it. The plan and the justification are inseparable.
 ${SHARED_PRINCIPLES}
 Answer using ONLY the provided knowledge base context.`,
+
+  GENERATE: `You are Atlas — a personal strategy super intelligence engine. Single operator: Jeremy Grant.
+
+MODE: GENERATE
+The operator wants to produce a structured, usable deliverable — not an answer. Write a polished document based on the knowledge base context and the request.
+
+DOCUMENT STANDARDS:
+- Use ## headers to organize sections
+- Be specific and direct — this is a working document
+- Cite every factual claim as [Source N] using the numbered sources provided
+- Open with a one-sentence framing of what this document is and why it exists
+- Close with a "Key Assumptions" section noting what is established fact vs inference
+- Length: as long as the document needs to be, no more
+
+FORMATS this mode handles well: competitive brief, positioning memo, strategy narrative, engagement summary, hypothesis document, talking points, SWOT analysis, stakeholder brief.
+
+${SHARED_PRINCIPLES}
+Write using ONLY the provided knowledge base context.`,
 };
 
 // ─── Pinned Core ──────────────────────────────────────────────────────────────
@@ -196,12 +214,36 @@ async function rerank(
 
 export async function queryKnowledgeBase(
   query: string,
-  options: { mode?: AtlasMode; layer?: KnowledgeLayer; topK?: number } = {}
+  options: {
+    mode?: AtlasMode;
+    layer?: KnowledgeLayer;
+    topK?: number;
+    engagementId?: string;
+    conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
+  } = {}
 ): Promise<QueryResponse> {
-  const { mode = "DIAGNOSIS", layer, topK = 5 } = options;
+  const { mode = "DIAGNOSIS", layer, topK = 5, engagementId, conversationHistory } = options;
 
   // 1. Embed query once — reused for pinned core + hybrid retrieval
   const queryEmbedding = await generateEmbedding(query);
+
+  // 1b. Fetch engagement context if engagementId provided
+  let engagementContext: string | null = null;
+  if (engagementId) {
+    try {
+      const supabase = getServiceClient();
+      const { data: eng } = await supabase
+        .from("engagements")
+        .select("brief, notes")
+        .eq("id", engagementId)
+        .single();
+      if (eng) {
+        engagementContext = `ENGAGEMENT CONTEXT:\n${eng.brief || ""}\n\nNotes: ${eng.notes || ""}`;
+      }
+    } catch {
+      // Ignore — proceed without engagement context
+    }
+  }
 
   // 2. Pinned core + broad candidates in parallel
   const [pinnedCore, candidates] = await Promise.all([
@@ -232,13 +274,28 @@ export async function queryKnowledgeBase(
     })
     .join("\n\n---\n\n");
 
+  // 6. Build user message — prepend engagement context if available
+  const userMessage = engagementContext
+    ? `${engagementContext}\n\n---\n\nQuery: ${query}`
+    : `Knowledge base context:\n\n${context}\n\n---\n\nQuery: ${query}`;
+
+  // Build messages array with optional conversation history (last 6 turns)
+  const historyMessages: Array<{ role: "user" | "assistant"; content: string }> =
+    conversationHistory ? conversationHistory.slice(-6) : [];
+
   // 6. Synthesize — temp: OpenAI gpt-4o (swap back to Claude when Anthropic key restored)
   const message = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     max_tokens: 1500,
     messages: [
       { role: "system", content: SYSTEM_PROMPTS[mode] },
-      { role: "user", content: `Knowledge base context:\n\n${context}\n\n---\n\nQuery: ${query}` },
+      // If no engagement context, prepend the KB context as a system-adjacent user message
+      ...(engagementContext
+        ? [{ role: "user" as const, content: `Knowledge base context:\n\n${context}` },
+           { role: "assistant" as const, content: "Understood. I have the knowledge base context and engagement context." }]
+        : []),
+      ...historyMessages,
+      { role: "user", content: userMessage },
     ],
   });
 
@@ -257,6 +314,7 @@ export async function queryKnowledgeBase(
       section_heading: r.chunk.metadata?.section_heading as string | undefined,
       similarity: r.similarity,
       pinned: pinnedIds.has(r.chunk.id),
+      source_path: r.document.source_path,
     })),
   };
 }

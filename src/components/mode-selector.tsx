@@ -1,6 +1,6 @@
 "use client";
 
-import { Microscope, Crosshair } from "lucide-react";
+import { Microscope, Crosshair, FileText } from "lucide-react";
 import type { AtlasMode } from "@/lib/types";
 
 interface ModeSelectorProps {
@@ -18,6 +18,11 @@ const MODES: Record<AtlasMode, { label: string; description: string; icon: typeo
     label: "Prescription",
     description: "Build the argument. Sharpen a position, find supporting evidence, stress-test it.",
     icon: Crosshair,
+  },
+  GENERATE: {
+    label: "Generate",
+    description: "Produce a structured deliverable — brief, memo, narrative, or analysis document.",
+    icon: FileText,
   },
 };
 
@@ -58,7 +63,7 @@ export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
                 }}
               />
               <span style={{
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
+                fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase",
                 color: active ? "var(--accent-secondary)" : "var(--text-tertiary)",
                 transition: "color 0.15s",
