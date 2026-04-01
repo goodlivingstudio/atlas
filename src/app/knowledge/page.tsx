@@ -194,7 +194,7 @@ function PreviewModal({ doc, onClose }: { doc: DocDetail; onClose: () => void })
         style={{
           background: "var(--bg-surface)",
           border: "1px solid var(--border)",
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
           maxWidth: 600, width: "100%",
           maxHeight: "80vh", overflowY: "auto",
           padding: "28px 28px 24px",
@@ -319,7 +319,7 @@ function VerdictPanel({ status, layers }: { status: StatusData; layers: LayerEnt
     <div style={{
       background: "var(--bg-surface)",
       border: "1px solid var(--border)",
-      borderRadius: "var(--radius-card)",
+      borderRadius: "var(--radius-lg)",
       padding: "24px 28px",
       marginBottom: 20,
       display: "flex",
@@ -568,7 +568,7 @@ function DiagnosticDrawer({
                           color: "var(--accent-secondary)",
                           background: "var(--accent-primary)",
                           border: "1px solid var(--accent-secondary)",
-                          borderRadius: "var(--radius-btn)",
+                          borderRadius: "var(--radius-md)",
                           padding: "3px 9px", cursor: "pointer",
                         }}
                       >
@@ -695,7 +695,7 @@ function LayerCard({
       background: "var(--bg-surface)",
       border: "1px solid var(--border)",
       borderLeft: `3px solid ${stateMeta.color}`,
-      borderRadius: "var(--radius-card)",
+      borderRadius: "var(--radius-lg)",
       overflow: "hidden",
     }}>
       {/* Card header row */}
@@ -873,7 +873,7 @@ export default function KnowledgePage() {
           style={{
             display: "flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px",
             background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-            borderRadius: "var(--radius-btn)", textDecoration: "none",
+            borderRadius: "var(--radius-md)", textDecoration: "none",
             fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--accent-secondary)", flexShrink: 0,
           }}

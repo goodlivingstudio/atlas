@@ -377,7 +377,7 @@ export default function LoadingDock() {
         <div style={{
           marginBottom: 32, padding: "20px 24px",
           background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
         }}>
           <div style={{
             fontSize: 11, fontWeight: 600,
@@ -393,7 +393,7 @@ export default function LoadingDock() {
                 display: "inline-flex", alignItems: "center", gap: 5,
                 height: 36, padding: "0 14px",
                 background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                borderRadius: "var(--radius-md)", textDecoration: "none",
                 color: "var(--accent-secondary)", fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase",
               }}
@@ -406,7 +406,7 @@ export default function LoadingDock() {
                 display: "inline-flex", alignItems: "center", gap: 5,
                 height: 36, padding: "0 14px",
                 background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                borderRadius: "var(--radius-md)", textDecoration: "none",
                 color: "var(--text-secondary)", fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase",
               }}
@@ -420,7 +420,7 @@ export default function LoadingDock() {
                   display: "inline-flex", alignItems: "center", gap: 5,
                   height: 36, padding: "0 14px",
                   background: "transparent", border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-btn)", textDecoration: "none",
+                  borderRadius: "var(--radius-md)", textDecoration: "none",
                   color: "var(--text-secondary)", fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase",
                 }}
@@ -447,7 +447,7 @@ export default function LoadingDock() {
           <div style={{
             padding: "24px 28px",
             background: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)",
+            borderRadius: "var(--radius-lg)",
             display: "flex", flexDirection: "column",
           }}>
             <div style={{
@@ -494,7 +494,7 @@ export default function LoadingDock() {
         <div style={{
           padding: "40px 32px",
           border: `2px dashed ${dragOver ? "var(--accent-secondary)" : "var(--border)"}`,
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
           background: dragOver ? "var(--accent-primary)" : "transparent",
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", gap: 14,
@@ -535,7 +535,7 @@ export default function LoadingDock() {
                   display: "flex", alignItems: "center", gap: 6,
                   height: 40, padding: "0 18px",
                   background: "var(--bg-surface)", border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
+                  borderRadius: "var(--radius-md)", color: "var(--text-secondary)",
                   fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: "pointer",
                 }}
@@ -550,7 +550,7 @@ export default function LoadingDock() {
                   display: "flex", alignItems: "center", gap: 6,
                   height: 40, padding: "0 18px",
                   background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-                  borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                  borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
                   fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: "pointer",
                 }}
@@ -575,7 +575,7 @@ export default function LoadingDock() {
         <div style={{
           padding: "24px 28px", marginBottom: 40,
           background: "var(--bg-surface)", border: "1px solid var(--error)",
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
         }}>
           <div style={{
             fontSize: 11, fontWeight: 600,
@@ -593,7 +593,7 @@ export default function LoadingDock() {
               style={{
                 height: 36, padding: "0 16px",
                 background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-                borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
                 fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", cursor: "pointer",
               }}
@@ -605,7 +605,7 @@ export default function LoadingDock() {
               style={{
                 height: 36, padding: "0 16px",
                 background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+                borderRadius: "var(--radius-md)", color: "var(--text-tertiary)",
                 fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", cursor: "pointer",
               }}
@@ -634,7 +634,7 @@ export default function LoadingDock() {
         <form onSubmit={handleSubmit} style={{
           padding: "28px 28px 24px",
           background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
-          borderRadius: "var(--radius-card)", marginBottom: 40,
+          borderRadius: "var(--radius-lg)", marginBottom: 40,
         }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24,
@@ -684,7 +684,7 @@ export default function LoadingDock() {
                 style={{
                   width: "100%", height: 48, padding: "0 14px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-btn)", color: "var(--text-primary)",
+                  borderRadius: "var(--radius-md)", color: "var(--text-primary)",
                   fontSize: 14, outline: "none",
                 }}
               />
@@ -712,7 +712,7 @@ export default function LoadingDock() {
                 style={{
                   width: "100%", padding: "12px 14px", boxSizing: "border-box",
                   background: "var(--bg-primary)", border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-btn)", color: "var(--text-primary)", fontSize: 14,
+                  borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontSize: 14,
                   outline: "none", resize: "vertical", lineHeight: 1.75, fontFamily: "inherit",
                 }}
               />
@@ -737,7 +737,7 @@ export default function LoadingDock() {
               style={{
                 width: "100%", height: 48, padding: "0 14px", boxSizing: "border-box",
                 background: "var(--bg-primary)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", color: "var(--text-primary)",
+                borderRadius: "var(--radius-md)", color: "var(--text-primary)",
                 fontSize: 13, outline: "none",
               }}
             />
@@ -750,7 +750,7 @@ export default function LoadingDock() {
             <div role="alert" style={{
               padding: "12px 14px", marginBottom: 16,
               background: "var(--bg-primary)", border: "1px solid var(--error)",
-              borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+              borderRadius: "var(--radius-md)", color: "var(--error)", fontSize: 12,
             }}>
               {saveError}
             </div>
@@ -765,7 +765,7 @@ export default function LoadingDock() {
                 height: 48, padding: "0 24px",
                 background: saving ? "var(--bg-elevated)" : "var(--accent-primary)",
                 border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
-                borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
                 cursor: saving || !form.name.trim() ? "not-allowed" : "pointer",
                 fontSize: 11, fontWeight: 600, textTransform: "uppercase",
                 opacity: !form.name.trim() && !saving ? 0.5 : 1,
@@ -783,7 +783,7 @@ export default function LoadingDock() {
               style={{
                 height: 48, padding: "0 20px",
                 background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+                borderRadius: "var(--radius-md)", color: "var(--text-tertiary)",
                 cursor: "pointer", fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase",
               }}
@@ -854,7 +854,7 @@ function AnalysisReview({
     <div style={{
       marginBottom: 40,
       background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
-      borderRadius: "var(--radius-card)", overflow: "hidden",
+      borderRadius: "var(--radius-lg)", overflow: "hidden",
     }}>
       {/* Header */}
       <div style={{
@@ -1012,7 +1012,7 @@ function AnalysisReview({
           <div role="alert" style={{
             padding: "10px 14px", marginBottom: 12,
             background: "var(--bg-primary)", border: "1px solid var(--error)",
-            borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+            borderRadius: "var(--radius-md)", color: "var(--error)", fontSize: 12,
           }}>
             {saveError}
           </div>
@@ -1026,7 +1026,7 @@ function AnalysisReview({
               height: 44, padding: "0 20px",
               background: saving ? "var(--bg-elevated)" : "var(--accent-primary)",
               border: `1px solid ${saving ? "var(--border)" : "var(--accent-secondary)"}`,
-              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+              borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
               cursor: saving ? "not-allowed" : "pointer",
               fontSize: 11, fontWeight: 600, textTransform: "uppercase",
             }}
@@ -1046,7 +1046,7 @@ function AnalysisReview({
               display: "flex", alignItems: "center", gap: 6,
               height: 44, padding: "0 18px",
               background: "transparent", border: "1px solid var(--border)",
-              borderRadius: "var(--radius-btn)", color: "var(--text-secondary)",
+              borderRadius: "var(--radius-md)", color: "var(--text-secondary)",
               cursor: "pointer", fontSize: 11, fontWeight: 600,
               textTransform: "uppercase",
             }}
@@ -1059,7 +1059,7 @@ function AnalysisReview({
             style={{
               height: 44, padding: "0 16px",
               background: "transparent", border: "none",
-              borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+              borderRadius: "var(--radius-md)", color: "var(--text-tertiary)",
               cursor: "pointer", fontSize: 11, fontWeight: 600,
               textTransform: "uppercase",
             }}
@@ -1095,7 +1095,7 @@ function EngagementCard({
   return (
     <div style={{
       background: "var(--bg-surface)", border: "1px solid var(--border)",
-      borderRadius: "var(--radius-card)", overflow: "hidden",
+      borderRadius: "var(--radius-lg)", overflow: "hidden",
       opacity: isArchived ? 0.6 : 1,
       display: "flex", flexDirection: "column",
     }}>
@@ -1179,7 +1179,7 @@ function EngagementCard({
             display: "flex", alignItems: "center", gap: 5,
             height: 36, padding: "0 14px",
             background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-            borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+            borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
             textDecoration: "none", fontSize: 11, fontWeight: 600,
             textTransform: "uppercase",
             flex: 1, justifyContent: "center",
@@ -1196,7 +1196,7 @@ function EngagementCard({
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 36, height: 36, padding: 0, flexShrink: 0,
               background: "transparent", border: "1px solid var(--border)",
-              borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)", cursor: "pointer",
+              borderRadius: "var(--radius-md)", color: "var(--text-tertiary)", cursor: "pointer",
             }}
           >
             <Archive size={13} aria-hidden="true" />

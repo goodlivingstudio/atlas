@@ -70,7 +70,7 @@ export default function EngagementsPage() {
           style={{
             display: "flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px",
             background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-            borderRadius: "var(--radius-btn)", textDecoration: "none",
+            borderRadius: "var(--radius-md)", textDecoration: "none",
             fontSize: 11, fontWeight: 600,
             textTransform: "uppercase", color: "var(--accent-secondary)",
             flexShrink: 0,
@@ -93,7 +93,7 @@ export default function EngagementsPage() {
       {error && (
         <div style={{
           padding: "14px 16px", background: "var(--bg-surface)",
-          border: "1px solid var(--error)", borderRadius: "var(--radius-card)",
+          border: "1px solid var(--error)", borderRadius: "var(--radius-lg)",
           color: "var(--error)", fontSize: 13,
         }}>
           {error}
@@ -105,7 +105,7 @@ export default function EngagementsPage() {
         <div style={{
           padding: "40px 28px", textAlign: "center",
           background: "var(--bg-surface)", border: "1px solid var(--border)",
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
         }}>
           <div style={{
             fontSize: 11, fontWeight: 600,
@@ -123,7 +123,7 @@ export default function EngagementsPage() {
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "10px 20px",
               background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-              borderRadius: "var(--radius-btn)", textDecoration: "none",
+              borderRadius: "var(--radius-md)", textDecoration: "none",
               fontSize: 11, fontWeight: 600,
               textTransform: "uppercase", color: "var(--accent-secondary)",
             }}
@@ -175,7 +175,7 @@ export default function EngagementsPage() {
                       style={{
                         display: "flex", alignItems: "center",
                         background: "var(--bg-surface)", border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-card)",
+                        borderRadius: "var(--radius-lg)",
                         transition: "background 0.15s",
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elevated)"; }}

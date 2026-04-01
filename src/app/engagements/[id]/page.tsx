@@ -211,7 +211,7 @@ export default function EngagementDetailPage({
           <div style={{
             width: "100%", maxWidth: 560,
             background: "var(--bg-primary)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)", overflow: "hidden",
+            borderRadius: "var(--radius-lg)", overflow: "hidden",
           }}>
             {/* Modal header */}
             <div style={{
@@ -258,7 +258,7 @@ export default function EngagementDetailPage({
                     style={{
                       width: "100%", height: 40, padding: "0 12px",
                       background: "var(--bg-surface)", border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-btn)", color: "var(--text-primary)",
+                      borderRadius: "var(--radius-md)", color: "var(--text-primary)",
                       fontSize: 14, outline: "none", boxSizing: "border-box",
                       fontFamily: "inherit",
                     }}
@@ -285,7 +285,7 @@ export default function EngagementDetailPage({
                     style={{
                       width: "100%", padding: "10px 12px",
                       background: "var(--bg-surface)", border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-btn)", color: "var(--text-primary)",
+                      borderRadius: "var(--radius-md)", color: "var(--text-primary)",
                       fontSize: 14, outline: "none", resize: "vertical",
                       boxSizing: "border-box", lineHeight: 1.75, fontFamily: "inherit",
                     }}
@@ -303,7 +303,7 @@ export default function EngagementDetailPage({
                 onClick={() => setIsEditing(false)}
                 style={{
                   height: 36, padding: "0 16px", background: "transparent",
-                  border: "1px solid var(--border)", borderRadius: "var(--radius-btn)",
+                  border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
                   color: "var(--text-tertiary)", fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: "pointer",
                 }}
@@ -337,7 +337,7 @@ export default function EngagementDetailPage({
                 style={{
                   height: 36, padding: "0 20px",
                   background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-                  borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+                  borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
                   fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", cursor: saving ? "not-allowed" : "pointer",
                   opacity: saving || !editName.trim() ? 0.5 : 1,
@@ -440,7 +440,7 @@ export default function EngagementDetailPage({
               display: "inline-flex", alignItems: "center", gap: 6,
               height: 44, padding: "0 20px",
               background: "var(--accent-primary)", border: "1px solid var(--accent-secondary)",
-              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+              borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
               textDecoration: "none", fontSize: 11, fontWeight: 600,
               textTransform: "uppercase",
             }}
@@ -460,7 +460,7 @@ export default function EngagementDetailPage({
               display: "inline-flex", alignItems: "center", gap: 6,
               height: 44, padding: "0 20px",
               background: "transparent", border: "1px solid var(--border)",
-              borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+              borderRadius: "var(--radius-md)", color: "var(--text-tertiary)",
               fontSize: 11, fontWeight: 600,
               textTransform: "uppercase", cursor: "pointer",
               transition: "border-color 0.15s, color 0.15s",
@@ -484,7 +484,7 @@ export default function EngagementDetailPage({
         <div style={{
           padding: "20px 24px",
           background: "var(--bg-surface)", border: "1px solid var(--border)",
-          borderRadius: "var(--radius-card)", marginBottom: 24,
+          borderRadius: "var(--radius-lg)", marginBottom: 24,
         }}>
           {engagement.brief && (
             <div style={{ marginBottom: engagement.notes ? 16 : 0 }}>
@@ -572,7 +572,7 @@ export default function EngagementDetailPage({
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             background: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)", overflow: "hidden",
+            borderRadius: "var(--radius-lg)", overflow: "hidden",
           }}>
             {signals.map((sig, i) => (
               <div key={i} style={{
@@ -611,7 +611,7 @@ export default function EngagementDetailPage({
           <div style={{
             padding: "16px 20px",
             background: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)",
+            borderRadius: "var(--radius-lg)",
           }}>
             <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
               {nextSteps.map((step, i) => (
@@ -657,7 +657,7 @@ export default function EngagementDetailPage({
           <div style={{
             padding: "24px 20px",
             background: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)", textAlign: "center",
+            borderRadius: "var(--radius-lg)", textAlign: "center",
           }}>
             <FileText size={20} style={{ color: "var(--text-tertiary)", marginBottom: 8 }} />
             <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>
@@ -674,7 +674,7 @@ export default function EngagementDetailPage({
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "12px 16px",
                 background: "var(--bg-surface)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-card)",
+                borderRadius: "var(--radius-lg)",
               }}>
                 <FileText size={13} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -706,7 +706,7 @@ export default function EngagementDetailPage({
       <div style={{
         padding: "20px 24px",
         background: "var(--bg-surface)", border: "1px solid var(--accent-secondary)",
-        borderRadius: "var(--radius-card)", marginBottom: 32,
+        borderRadius: "var(--radius-lg)", marginBottom: 32,
       }}>
         <div style={{
           fontSize: 11, fontWeight: 600,
@@ -726,7 +726,7 @@ export default function EngagementDetailPage({
                 height: 34, padding: "0 14px",
                 background: queryMode === m ? "var(--accent-primary)" : "transparent",
                 border: `1px solid ${queryMode === m ? "var(--accent-secondary)" : "var(--border)"}`,
-                borderRadius: "var(--radius-btn)",
+                borderRadius: "var(--radius-md)",
                 color: queryMode === m ? "var(--accent-secondary)" : "var(--text-tertiary)",
                 fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", cursor: "pointer",
@@ -742,7 +742,7 @@ export default function EngagementDetailPage({
             flex: 1, display: "flex", alignItems: "center", gap: 10,
             padding: "0 14px", height: 48,
             background: "var(--bg-primary)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-btn)",
+            borderRadius: "var(--radius-md)",
           }}>
             <Search size={12} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
             <input
@@ -764,7 +764,7 @@ export default function EngagementDetailPage({
               height: 48, padding: "0 20px",
               background: queryLoading ? "var(--bg-elevated)" : "var(--accent-primary)",
               border: `1px solid ${queryLoading ? "var(--border)" : "var(--accent-secondary)"}`,
-              borderRadius: "var(--radius-btn)", color: "var(--accent-secondary)",
+              borderRadius: "var(--radius-md)", color: "var(--accent-secondary)",
               fontSize: 11, fontWeight: 600,
               textTransform: "uppercase", cursor: queryLoading || !queryInput.trim() ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", gap: 6,
@@ -782,7 +782,7 @@ export default function EngagementDetailPage({
           <div role="alert" style={{
             padding: "10px 12px", marginTop: 10,
             background: "var(--bg-primary)", border: "1px solid var(--error)",
-            borderRadius: "var(--radius-btn)", color: "var(--error)", fontSize: 12,
+            borderRadius: "var(--radius-md)", color: "var(--error)", fontSize: 12,
           }}>
             {queryError}
           </div>
@@ -811,7 +811,7 @@ export default function EngagementDetailPage({
           <div style={{
             padding: "24px 20px",
             background: "var(--bg-surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)", textAlign: "center",
+            borderRadius: "var(--radius-lg)", textAlign: "center",
           }}>
             <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>No queries yet</div>
             <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4, opacity: 0.65 }}>
@@ -832,7 +832,7 @@ export default function EngagementDetailPage({
         <div style={{
           padding: "20px 24px",
           background: "var(--bg-surface)", border: "1px solid var(--border)",
-          borderRadius: "var(--radius-card)",
+          borderRadius: "var(--radius-lg)",
         }}>
           <div style={{
             fontSize: 11, fontWeight: 600,
@@ -848,7 +848,7 @@ export default function EngagementDetailPage({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "12px 16px",
                 background: "var(--bg-elevated)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                borderRadius: "var(--radius-md)", textDecoration: "none",
                 transition: "border-color 0.15s, background 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -871,7 +871,7 @@ export default function EngagementDetailPage({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "12px 16px",
                 background: "var(--bg-elevated)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                borderRadius: "var(--radius-md)", textDecoration: "none",
                 transition: "border-color 0.15s, background 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -894,7 +894,7 @@ export default function EngagementDetailPage({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "12px 16px",
                 background: "var(--bg-elevated)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", textDecoration: "none",
+                borderRadius: "var(--radius-md)", textDecoration: "none",
                 transition: "border-color 0.15s, background 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -928,7 +928,7 @@ function QueryHistoryItem({ query: q }: { query: QueryRecord }) {
   return (
     <div style={{
       background: "var(--bg-surface)", border: "1px solid var(--border)",
-      borderRadius: "var(--radius-card)", overflow: "hidden",
+      borderRadius: "var(--radius-lg)", overflow: "hidden",
     }}>
       {/* Query + meta */}
       <div style={{ padding: "16px 20px 12px" }}>

@@ -49,7 +49,7 @@ export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
               padding: "22px 22px", minHeight: 108, textAlign: "left", cursor: "pointer",
               background: active ? "var(--accent-primary)" : "var(--bg-surface)",
               border: `1px solid ${active ? "var(--accent-secondary)" : "var(--border)"}`,
-              borderRadius: "var(--radius-card)",
+              borderRadius: "var(--radius-lg)",
               transition: "border-color 0.15s, background 0.15s",
             }}
           >

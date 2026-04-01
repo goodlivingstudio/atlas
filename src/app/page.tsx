@@ -279,7 +279,7 @@ export default function Home() {
                   alignItems: "center",
                   background: "var(--bg-surface)",
                   border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-card)",
+                  borderRadius: "var(--radius-lg)",
                   borderLeft: `2px solid ${STATUS_COLOR[eng.status] ?? "var(--border)"}`,
                   gap: 0,
                   transition: "background 0.15s",
@@ -359,7 +359,7 @@ export default function Home() {
 
           <div style={{
             border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)",
+            borderRadius: "var(--radius-lg)",
             overflow: "hidden",
           }}>
             {signalItems.map((item, i) => (

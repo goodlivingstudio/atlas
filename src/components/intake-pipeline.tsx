@@ -240,7 +240,7 @@ export function IntakePipeline({
 
   return (
     <div style={{
-      marginBottom: 40, borderRadius: "var(--radius-card)",
+      marginBottom: 40, borderRadius: "var(--radius-lg)",
       border: "1px solid var(--accent-secondary)",
       overflow: "hidden",
       animation: "pipeline-appear 0.3s ease both",

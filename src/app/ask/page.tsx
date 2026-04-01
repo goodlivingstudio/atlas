@@ -196,7 +196,7 @@ function SourcesPanel({ sources }: { sources: Source[] }) {
     <div style={{
       marginTop: 14,
       border: "1px solid var(--border)",
-      borderRadius: "var(--radius-btn)",
+      borderRadius: "var(--radius-md)",
       overflow: "hidden",
     }}>
       <button
@@ -492,7 +492,7 @@ function AskAtlas() {
                 display: "flex", alignItems: "center", gap: 5,
                 height: 28, padding: "0 10px",
                 background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)", color: "var(--text-tertiary)",
+                borderRadius: "var(--radius-md)", color: "var(--text-tertiary)",
                 fontSize: 11, fontWeight: 600,
                 textTransform: "uppercase", fontFamily: "var(--font-mono)",
                 cursor: "pointer",
@@ -513,7 +513,7 @@ function AskAtlas() {
               style={{
                 height: 36, padding: "0 10px",
                 background: "var(--bg-surface)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-btn)",
+                borderRadius: "var(--radius-md)",
                 color: scopeId ? "var(--text-primary)" : "var(--text-tertiary)",
                 fontSize: 12, cursor: "pointer", width: "100%",
               }}
@@ -554,7 +554,7 @@ function AskAtlas() {
               <div style={{
                 marginTop: 10, padding: "14px 16px",
                 background: "var(--bg-surface)", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-card)",
+                borderRadius: "var(--radius-lg)",
                 display: "flex", flexDirection: "column", gap: 8,
               }}>
                 {[
@@ -594,7 +594,7 @@ function AskAtlas() {
                     style={{
                       padding: 16, textAlign: "left",
                       background: "var(--bg-surface)", border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-card)", cursor: "pointer",
+                      borderRadius: "var(--radius-lg)", cursor: "pointer",
                       transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) => {
