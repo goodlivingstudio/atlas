@@ -20,6 +20,14 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Atlas",
   description: "Personal strategy super intelligence OS",
+  robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: "/favicon-light.png", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png", media: "(prefers-color-scheme: dark)" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
