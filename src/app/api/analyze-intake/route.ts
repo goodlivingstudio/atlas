@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-// TEMP: OpenAI while Anthropic org is being restored.
 
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return _openai;
+
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -90,18 +90,16 @@ export async function POST(request: NextRequest) {
   ].filter(Boolean).join("\n");
 
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+    const response = await getAnthropic().messages.create({
+      model: "claude-sonnet-4-20250514",
       max_tokens: 1000,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
+      system: SYSTEM,
       messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user",   content: userContent },
+        { role: "user", content: userContent + "\n\nReturn ONLY valid JSON." },
       ],
     });
 
-    const raw = response.choices[0].message.content ?? "{}";
+    const raw = response.content[0]?.type === "text" ? response.content[0].text : "{}";
     const parsed = JSON.parse(raw) as Partial<IntakeAnalysis>;
 
     // Validate and fill defaults

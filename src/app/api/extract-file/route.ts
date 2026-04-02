@@ -230,24 +230,26 @@ export async function POST(request: NextRequest) {
       const base64    = buffer.toString("base64");
       const mediaType = mimeType || `image/${ext === "jpg" ? "jpeg" : ext}`;
 
-      const visionRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      const visionRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "gpt-4o",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 2000,
           messages: [
             {
               role: "user",
               content: [
                 {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mediaType};base64,${base64}`,
-                    detail: "high",
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: mediaType,
+                    data: base64,
                   },
                 },
                 {
@@ -265,8 +267,8 @@ export async function POST(request: NextRequest) {
         throw new Error((errBody as { error?: { message?: string } })?.error?.message || "Vision API failed");
       }
 
-      const visionData = await visionRes.json() as { choices: Array<{ message: { content: string } }> };
-      text = visionData.choices?.[0]?.message?.content?.trim() ?? "";
+      const visionData = await visionRes.json() as { content: Array<{ type: string; text: string }> };
+      text = visionData.content?.[0]?.type === "text" ? visionData.content[0].text.trim() : "";
     }
 
     // ── Unsupported ───────────────────────────────────────────────────────────

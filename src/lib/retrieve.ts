@@ -1,6 +1,4 @@
-// TEMP: Using OpenAI while Anthropic org is being restored.
-// To switch back: replace OpenAI client + messages.create call with Anthropic equivalents.
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { VoyageAIClient } from "voyageai";
 import { getServiceClient } from "./supabase";
 import { generateEmbedding } from "./embeddings";
@@ -8,10 +6,10 @@ import type { AtlasMode, KnowledgeLayer, RetrievalResult, QueryResponse } from "
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return _openai;
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
 }
 
 let _voyage: VoyageAIClient | null = null;
@@ -283,23 +281,24 @@ export async function queryKnowledgeBase(
   const historyMessages: Array<{ role: "user" | "assistant"; content: string }> =
     conversationHistory ? conversationHistory.slice(-6) : [];
 
-  // 6. Synthesize — temp: OpenAI gpt-4o (swap back to Claude when Anthropic key restored)
-  const message = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+  // 6. Synthesize via Claude Sonnet
+  const synthMessages: Anthropic.MessageParam[] = [
+    ...(engagementContext
+      ? [{ role: "user" as const, content: `Knowledge base context:\n\n${context}` },
+         { role: "assistant" as const, content: "Understood. I have the knowledge base context and engagement context." }]
+      : []),
+    ...historyMessages,
+    { role: "user" as const, content: userMessage },
+  ];
+
+  const message = await getAnthropic().messages.create({
+    model: "claude-sonnet-4-20250514",
     max_tokens: 1500,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPTS[mode] },
-      // If no engagement context, prepend the KB context as a system-adjacent user message
-      ...(engagementContext
-        ? [{ role: "user" as const, content: `Knowledge base context:\n\n${context}` },
-           { role: "assistant" as const, content: "Understood. I have the knowledge base context and engagement context." }]
-        : []),
-      ...historyMessages,
-      { role: "user", content: userMessage },
-    ],
+    system: SYSTEM_PROMPTS[mode],
+    messages: synthMessages,
   });
 
-  const answer = message.choices[0].message.content ?? "";
+  const answer = message.content[0]?.type === "text" ? message.content[0].text : "";
 
   const pinnedIds = new Set(pinnedCore.map((r) => r.chunk.id));
 

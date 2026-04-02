@@ -8,9 +8,7 @@ export async function GET() {
   checks.anthropic = {
     status: process.env.ANTHROPIC_API_KEY ? "ok" : "missing",
   };
-  checks.openai = {
-    status: process.env.OPENAI_API_KEY ? "ok" : "missing",
-  };
+  // OpenAI removed — now using Anthropic for all AI
   checks.supabase_url = {
     status: process.env.NEXT_PUBLIC_SUPABASE_URL ? "ok" : "missing",
   };

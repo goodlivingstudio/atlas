@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { getServiceClient } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -10,12 +10,12 @@ interface IntelligenceCard {
   engagement?: string;
 }
 
-// ─── OpenAI singleton ─────────────────────────────────────────────────────────
+// ─── Anthropic singleton ─────────────────────────────────────────────────────
 
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return _openai;
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
 }
 
 // ─── GET /api/intelligence ────────────────────────────────────────────────────
@@ -107,16 +107,15 @@ Rules:
 - If news is unavailable, return {"cards": []}
 - Return ONLY valid JSON, no markdown`;
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+    const completion = await getAnthropic().messages.create({
+      model: "claude-sonnet-4-20250514",
       max_tokens: 800,
-      response_format: { type: "json_object" },
       messages: [
-        { role: "user", content: prompt },
+        { role: "user", content: prompt + "\n\nReturn ONLY valid JSON." },
       ],
     });
 
-    const raw = completion.choices[0].message.content ?? "{}";
+    const raw = completion.content[0]?.type === "text" ? completion.content[0].text : "{}";
     let parsed: { cards?: IntelligenceCard[] };
     try {
       parsed = JSON.parse(raw);
